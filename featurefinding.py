@@ -10,6 +10,12 @@ def parser():
         default="Data/data.json",
         help="Path to the input ROOT data file."
     )
+    parser.add_argument(
+        "-o", "--output",
+        action="store_true",
+        default=False,
+        help="Whether to output the clusters to a json file."
+    )
     return parser.parse_args()
 
 # Returns a list of clusters (dict) each representing the hits from a given particle
@@ -37,6 +43,7 @@ def createClusters(dataFile):
 
     return clusters
 
+# Calculates the rms of each cluster's hits to a straight line and appends this to the cluster.
 def rmsLinearFit(clusters):
     for cluster in clusters:
         hits = cluster["hits"]
@@ -52,6 +59,9 @@ def rmsLinearFit(clusters):
         cluster["rmserror"] = np.sqrt(np.mean(perpendicularDistances**2))
     
     return clusters
+
+def energyDeposition(clusters):
+    return None
         
 def findFeatures(clusters):
     clusters = rmsLinearFit(clusters)
@@ -60,14 +70,15 @@ def findFeatures(clusters):
 
 def main():
     args = parser()
-    dataFile = args.datafile
+    dataFile, output = args.datafile, args.output
 
     unfeaturedClusters = createClusters(dataFile)
     featuredClusters = findFeatures(unfeaturedClusters)
-    
-    """ with open("Data/temp.json", "w") as f:
-        json.dump(featuredClusters, f, indent=4)
-    print("Output file created") """
+
+    if output:
+        with open("Data/clusters.json", "w") as f:
+            json.dump(featuredClusters, f, indent=4)
+        print("Output file created")
 
 
 main()

@@ -48,16 +48,16 @@ def hitsPlot(hitPositions, particleTypes, systemTypes, markNeutrino, markerSize=
     if markNeutrino:
         neutrinoMask = systemTypes[2]["mask"]
         for pType in particleTypes:
-            xCoords, zCoords = hitPositions[:,0][pType["mask"] & neutrinoMask], hitPositions[:,2][pType["mask"] & neutrinoMask]
+            xCoords, zCoords = hitPositions[:,0][pType["mask"] & neutrinoMask], hitPositions[:,1][pType["mask"] & neutrinoMask]
             plt.scatter(xCoords, zCoords, s=4*markerSize, c="k", marker="x")
-            xCoords, zCoords = hitPositions[:,0][pType["mask"] & ~neutrinoMask], hitPositions[:,2][pType["mask"] & ~neutrinoMask]
+            xCoords, zCoords = hitPositions[:,0][pType["mask"] & ~neutrinoMask], hitPositions[:,1][pType["mask"] & ~neutrinoMask]
             plt.scatter(xCoords, zCoords, s=markerSize, c=pType["colour"], marker=".")
     else:
         for pType in particleTypes:
-            xCoords, zCoords = hitPositions[:,0][pType["mask"]], hitPositions[:,2][pType["mask"]]
+            xCoords, zCoords = hitPositions[:,0][pType["mask"]], hitPositions[:,1][pType["mask"]]
             plt.scatter(xCoords, zCoords, s=markerSize, c=pType["colour"], marker=".")
     miscType = systemTypes[1]
-    xCoords, zCoords = hitPositions[:,0][miscType["mask"]], hitPositions[:,2][miscType["mask"]]
+    xCoords, zCoords = hitPositions[:,0][miscType["mask"]], hitPositions[:,1][miscType["mask"]]
     plt.scatter(xCoords, zCoords, s=markerSize, c=miscType["colour"])
 
     plt.title("W View")

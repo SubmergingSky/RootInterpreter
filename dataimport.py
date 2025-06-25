@@ -31,32 +31,36 @@ def dataUnpack(filename, treename):
         ids = tree["ids"].array(library="np")
         energies = tree["energies"].array(library="np") #[GeV]
         hitIds = tree["hitIds"].array(library="np") # 8/9 nnnnnnnnnn "PDG code" nnnnn "particle counter"
-        hitsX, hitsY, hitsZ = tree["hitsX"].array(library="np"), tree["hitsY"].array(library="np"), tree["hitsZ"].array(library="np") #[mm]
+        hitsX, hitsZ = tree["hitsX"].array(library="np"), tree["hitsZ"].array(library="np") #[mm]
+        inputEnergies = tree["inputEnergies"].array(library="np")
 
-    return (ids, energies, hitIds, hitsX, hitsY, hitsZ)
+    return (ids, energies, hitIds, hitsX, hitsZ, inputEnergies)
 
 # Outputs the unpacked data to a json file
 def dataOutput(data, outputFile):
-    ids, energies, hitIds, hitsX, hitsY, hitsZ = data
+    ids, energies, hitIds, hitsX, hitsZ, inputEnergies = data
     allData = []
     for i in range(ids.shape[0]):
-        hitPositions = np.column_stack((hitsX[i], hitsY[i], hitsZ[i]))
+        hitPositions = np.column_stack((hitsX[i], hitsZ[i]))
         eventData = {
             "ids": ids[i].tolist(),
             "energies": energies[i].tolist(),
             "hitIds": hitIds[i].tolist(),
-            "hitPositions": hitPositions.tolist()
+            "hitPositions": hitPositions.tolist(),
+            "inputEnergies": inputEnergies[i].tolist()
         }
         allData.append(eventData)
     
     with open(outputFile, "w") as f:
         json.dump(allData, f, indent=4)
     print("Output file created")
+    return None
 
 def main():
     args = parser()
     dataFile, treename, outputFile = args.datafile, args.treename, args.outputfile
     data = dataUnpack(dataFile, treename)
     dataOutput(data, outputFile)
+    return None
 
 main()
