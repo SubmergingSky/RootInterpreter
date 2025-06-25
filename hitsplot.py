@@ -32,15 +32,15 @@ def parser():
     return parser.parse_args()
 
 # Creates the hit masks for a given event
-def createMasks(hitIds, particleTypes, systemTypes):
-    neutrinoCode, PDGCodes, counters = np.array([str(id)[0] for id in hitIds]).astype(np.int32), np.array([str(id)[1:11] for id in hitIds]).astype(np.int32), np.array([str(id)[-5:] for id in hitIds]).astype(np.int32)
-    systemTypes[0]["mask"] = np.full(len(hitIds), False)
+def createMasks(neutrinoCodes, PDGCodes, particleTypes, systemTypes):
+    systemTypes[0]["mask"] = np.full(len(PDGCodes), False)
     for pType in particleTypes:
         currentMask = (PDGCodes==pType["PDG"])
         pType["mask"] = currentMask
         systemTypes[0]["mask"] = systemTypes[0]["mask"] | currentMask
     systemTypes[1]["mask"] = ~systemTypes[0]["mask"]
-    systemTypes[2]["mask"] = (neutrinoCode==8)
+    systemTypes[2]["mask"] = (neutrinoCodes)
+
     return particleTypes, systemTypes
 
 # Plots the colourised hits for a given event
@@ -64,6 +64,7 @@ def hitsPlot(hitPositions, particleTypes, systemTypes, markNeutrino, markerSize=
     plt.xlabel("X Position /mm")
     plt.ylabel("Z Position /mm")
     plt.show()
+
     return None
 
 # Defines the particle types and then visualises each event
@@ -85,10 +86,18 @@ def main():
     with open(dataFile, "r") as f:
         data = json.load(f)
 
-    for i in range(skipEvents, min(len(data), skipEvents+viewEvents)):
-        eventData = data[i]
-        ids, energies, hitPositions, hitIds = eventData["ids"], eventData["energies"], np.array(eventData["hitPositions"]), eventData["hitIds"]
-        particleTypesMasked, systemTypesMasked = createMasks(hitIds, particleTypes, systemTypes)
+    eventIds = np.unique([cluster.get("eventId") for cluster in data])
+    for i in range(skipEvents, min(len(eventIds), skipEvents+viewEvents)):
+        eventClusters = [cluster for cluster in data if cluster.get("eventId")==eventIds[i]]
+        isFromNeutrinos, PDGCodes, hitPositions = [], [], []
+        for cluster in eventClusters:
+            for hit in cluster["hits"]:
+                isFromNeutrinos.append(cluster["isFromNeutrino"])
+                PDGCodes.append(cluster["PDGCode"])
+                hitPositions.append(hit)
+        isFromNeutrinos, PDGCodes, hitPositions = np.array(isFromNeutrinos), np.array(PDGCodes), np.array(hitPositions)
+
+        particleTypesMasked, systemTypesMasked = createMasks(isFromNeutrinos, PDGCodes, particleTypes, systemTypes)
         hitsPlot(hitPositions, particleTypesMasked, systemTypesMasked, markNeutrino)
 
     return None
