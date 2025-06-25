@@ -10,26 +10,55 @@ def parser():
         default="Data/data.json",
         help="Path to the input ROOT data file."
     )
+    parser.add_argument(
+        "-o", "--output",
+        action="store_true",
+        default=False,
+        help="Whether to output the clusters to a json file."
+    )
     return parser.parse_args()
 
-# Opens the data file and returns a list of particle counters and a list of hit positions.
-def getData(dataFile):
-    with open(dataFile, "r") as f:
-        data = json.load(f)
-    
-    counters, hits = [], []
-    for event in data:
-        hitIds, hitPositions = event["hitIds"], np.array(event["hitPositions"])
-        for id in hitIds: counters.append(int(str(id)[-5:]))
-        for hit in hitPositions: hits.append(hit)
+# Calculates the rms of each cluster's hits to a straight line and appends this to the cluster.
+def rmsLinearFit(cluster):
+    hits = cluster["hits"]
+    if len(hits)<2:
+        cluster["rmserror"] = 0
+        return cluster
 
-    return (counters, hits)
+    centroid = np.mean(hits, axis=0)
+    U, s, Vt = np.linalg.svd(hits-centroid)
+    fittedLineDirection = Vt[0] / np.linalg.norm(Vt[0])
+    projectedPoints = centroid + np.outer(np.dot((hits-centroid), fittedLineDirection), fittedLineDirection)
+    perpendicularDistances = np.linalg.norm((hits-projectedPoints), axis=1)
+    cluster["rmserror"] = np.sqrt(np.mean(perpendicularDistances**2))
+
+    return cluster
+
+# Calculates the average rate of energy deposition and appends this to the cluster.
+def energyDeposition(clusters):
+    return None
+        
+def findFeatures(clusters):
+    for cluster in clusters:
+        cluster = rmsLinearFit(cluster)
+
+    return clusters
+
 
 def main():
     args = parser()
-    dataFile = args.datafile
+    dataFile, output = args.datafile, args.output
 
-    data = getData(dataFile)
+    with open(dataFile, "r") as f:
+        data = json.load(f)
+    
+    featuredClusters = findFeatures(data)
 
+    if output:
+        with open("Data/clusters.json", "w") as f:
+            json.dump(featuredClusters, f, indent=4)
+        print("Output file created")
+
+    return None
 
 main()

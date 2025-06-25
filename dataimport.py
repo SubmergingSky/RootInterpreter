@@ -25,38 +25,54 @@ def parser():
     )
     return parser.parse_args()
 
-# Unpacks a root file and returns a list of event data
+# Unpacks a root file and returns a tuple of event data
 def dataUnpack(filename, treename):
     with uproot.open(f"{filename}:{treename}") as tree:
         ids = tree["ids"].array(library="np")
         energies = tree["energies"].array(library="np") #[GeV]
         hitIds = tree["hitIds"].array(library="np") # 8/9 nnnnnnnnnn "PDG code" nnnnn "particle counter"
-        hitsX, hitsY, hitsZ = tree["hitsX"].array(library="np"), tree["hitsY"].array(library="np"), tree["hitsZ"].array(library="np") #[mm]
+        hitsX, hitsZ = tree["hitsX"].array(library="np"), tree["hitsZ"].array(library="np") #[mm]
+        inputEnergies = tree["inputEnergies"].array(library="np")
 
-    return (ids, energies, hitIds, hitsX, hitsY, hitsZ)
+    return (ids, energies, hitIds, hitsX, hitsZ, inputEnergies)
 
-# Outputs the unpacked data to a json file
-def dataOutput(data, outputFile):
-    ids, energies, hitIds, hitsX, hitsY, hitsZ = data
-    allData = []
+# Packages the event data into clusters linking together hits from the same particle
+def createClusters(data):
+    clusters = []
+    ids, energies, hitIds, hitsX, hitsZ, inputEnergies = data
     for i in range(ids.shape[0]):
-        hitPositions = np.column_stack((hitsX[i], hitsY[i], hitsZ[i]))
-        eventData = {
-            "ids": ids[i].tolist(),
-            "energies": energies[i].tolist(),
-            "hitIds": hitIds[i].tolist(),
-            "hitPositions": hitPositions.tolist()
-        }
-        allData.append(eventData)
-    
+        eventHits = np.column_stack((hitsX[i], hitsZ[i]))
+
+        uniqueHitIds = np.unique(hitIds[i])
+        for hitId in uniqueHitIds:
+            cluster = {
+                "eventId": i,
+                "hitId": int(hitId),
+                "isFromNeutrino": str(hitId)[0]=="8",
+                "PDGCode": int(str(hitId)[1:11]),
+                "counter": int(str(hitId)[-5:]),
+                "hits": eventHits[(hitIds[i]==hitId)].tolist(),
+                "inputEnergies": inputEnergies[i][(hitIds[i]==hitId)].tolist()
+            }
+            clusters.append(cluster)
+
+    return clusters
+
+def dataOutput(data, outputFile):
     with open(outputFile, "w") as f:
-        json.dump(allData, f, indent=4)
+        json.dump(data, f, indent=4)
     print("Output file created")
+    return None
+
 
 def main():
     args = parser()
     dataFile, treename, outputFile = args.datafile, args.treename, args.outputfile
+
     data = dataUnpack(dataFile, treename)
-    dataOutput(data, outputFile)
+    clusters = createClusters(data)
+    dataOutput(clusters, outputFile)
+
+    return None
 
 main()
