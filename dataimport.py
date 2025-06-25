@@ -25,7 +25,7 @@ def parser():
     )
     return parser.parse_args()
 
-# Unpacks a root file and returns a list of event data
+# Unpacks a root file and returns a tuple of event data
 def dataUnpack(filename, treename):
     with uproot.open(f"{filename}:{treename}") as tree:
         ids = tree["ids"].array(library="np")
@@ -36,31 +36,43 @@ def dataUnpack(filename, treename):
 
     return (ids, energies, hitIds, hitsX, hitsZ, inputEnergies)
 
-# Outputs the unpacked data to a json file
-def dataOutput(data, outputFile):
+# Packages the event data into clusters linking together hits from the same particle
+def createClusters(data):
+    clusters = []
     ids, energies, hitIds, hitsX, hitsZ, inputEnergies = data
-    allData = []
     for i in range(ids.shape[0]):
-        hitPositions = np.column_stack((hitsX[i], hitsZ[i]))
-        eventData = {
-            "ids": ids[i].tolist(),
-            "energies": energies[i].tolist(),
-            "hitIds": hitIds[i].tolist(),
-            "hitPositions": hitPositions.tolist(),
-            "inputEnergies": inputEnergies[i].tolist()
-        }
-        allData.append(eventData)
-    
+        eventHits = np.column_stack((hitsX[i], hitsZ[i]))
+
+        uniqueHitIds = np.unique(hitIds[i])
+        for hitId in uniqueHitIds:
+            cluster = {
+                "eventId": i,
+                "hitId": int(hitId),
+                "isFromNeutrino": str(hitId)[0]=="8",
+                "PDGCode": int(str(hitId)[1:11]),
+                "counter": int(str(hitId)[-5:]),
+                "hits": eventHits[(hitIds[i]==hitId)].tolist(),
+                "inputEnergies": inputEnergies[i][(hitIds[i]==hitId)].tolist()
+            }
+            clusters.append(cluster)
+
+    return clusters
+
+def dataOutput(data, outputFile):
     with open(outputFile, "w") as f:
-        json.dump(allData, f, indent=4)
+        json.dump(data, f, indent=4)
     print("Output file created")
     return None
+
 
 def main():
     args = parser()
     dataFile, treename, outputFile = args.datafile, args.treename, args.outputfile
+
     data = dataUnpack(dataFile, treename)
-    dataOutput(data, outputFile)
+    clusters = createClusters(data)
+    dataOutput(clusters, outputFile)
+
     return None
 
 main()
