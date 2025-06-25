@@ -30,7 +30,7 @@ def rmsLinearFit(cluster):
     fittedLineDirection = Vt[0] / np.linalg.norm(Vt[0])
     projectedPoints = centroid + np.outer(np.dot((hits-centroid), fittedLineDirection), fittedLineDirection)
     perpendicularDistances = np.linalg.norm((hits-projectedPoints), axis=1)
-    cluster["rmserror"] = np.sqrt(np.mean(perpendicularDistances**2))
+    cluster["linearRmsError"] = np.sqrt(np.mean(perpendicularDistances**2))
 
     return cluster
 
@@ -55,7 +55,7 @@ def main():
     featuredClusters = findFeatures(data)
 
     if output:
-        with open("Data/clusters.json", "w") as f:
+        with open("Data/featured_data.json", "w") as f:
             json.dump(featuredClusters, f, indent=4)
         print("Output file created")
 
