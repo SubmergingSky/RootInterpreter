@@ -71,6 +71,7 @@ def main():
 
     data = dataUnpack(dataFile, treename)
     clusters = createClusters(data)
+    print(f"There are {len(clusters)} total clusters.")
     dataOutput(clusters, outputFile)
 
     return None

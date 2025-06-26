@@ -44,7 +44,7 @@ def createMasks(neutrinoCodes, PDGCodes, particleTypes, systemTypes):
     return particleTypes, systemTypes
 
 # Plots the colourised hits for a given event
-def hitsPlot(hitPositions, particleTypes, systemTypes, markNeutrino, markerSize=0.2):
+def hitsPlot(hitPositions, particleTypes, systemTypes, markNeutrino, markerSize=0.4):
     if markNeutrino:
         neutrinoMask = systemTypes[2]["mask"]
         for pType in particleTypes:
@@ -75,7 +75,8 @@ def main():
     particleTypes = [
         {"name": "proton", "PDG": 2212, "colour": "red", "mask": []},
         {"name": "chargedpion", "PDG": 211, "colour": "green", "mask": []},
-        {"name": "muon", "PDG": 13, "colour": "blue", "mask": []}
+        {"name": "muon", "PDG": 13, "colour": "blue", "mask": []},
+        {"name": "photon", "PDG": 22, "colour": "orange", "mask": []}
     ]
     systemTypes = [
         {"name": "all", "PDG": -1, "colour": "grey", "mask": []},
