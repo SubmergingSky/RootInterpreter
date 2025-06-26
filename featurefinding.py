@@ -35,15 +35,18 @@ def rmsLinearFit(cluster):
     return cluster
 
 # Calculates the average rate of energy deposition and appends this to the cluster.
-def energyDeposition(clusters):
-    return None
-        
+def meanEnergyDeposition(cluster):
+    inputEnergies = cluster["inputEnergies"]
+    cluster["meanEnergyDeposition"] = np.mean(inputEnergies)
+    return cluster
+
+   
 def findFeatures(clusters):
     for cluster in clusters:
         cluster = rmsLinearFit(cluster)
+        cluster = meanEnergyDeposition(cluster)
 
     return clusters
-
 
 def main():
     args = parser()
