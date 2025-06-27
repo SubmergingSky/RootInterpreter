@@ -24,13 +24,13 @@ def parser():
         help="The minimum number of hits a cluster must have to be considered."
     )
     parser.add_argument(
-        "-p", "--onlypimu",
+        "-m", "--onlypimu",
         action="store_true",
         default=False,
         help="Whether to only show pions and muons in the result plot."
     )
     parser.add_argument(
-        "-d", "--densityplot",
+        "-p", "--densityplot",
         action="store_true",
         default=False,
         help="Whether to plot event densities rather than absolute quantities."
@@ -64,13 +64,26 @@ def rmsErrorPlot(clusters, numHitsthreshold, onlyPiMu, densityPlot):
     numHits = np.array([len(cluster.get("hits")) for cluster in clusters])
     PDGCodes, rmsValues= np.array([cluster.get("PDGCode") for cluster in clusters])[numHits>=numHitsthreshold], np.array([cluster.get("linearRmsError") for cluster in clusters])[numHits>=numHitsthreshold], 
     for code in np.unique(PDGCodes):
-        if onlyPiMu and (code!=211 and code !=13): continue
-        codeRmsValues = rmsValues[PDGCodes==int(code)]
-        if len(codeRmsValues)>0: plt.hist(codeRmsValues, bins=50, range=(0, 20), label=f"PDGCode: {code}", density=densityPlot)
+        if onlyPiMu and (code!=211 and code !=13):
+            continue
+        else:
+            codeRmsValues = rmsValues[PDGCodes==int(code)]
+            if len(codeRmsValues)>0:
+                if densityPlot:
+                    binWeights = np.zeros_like(codeRmsValues) + 1/len(codeRmsValues)
+                    plt.hist(codeRmsValues, bins=50, range=(0, 20), label=f"PDGCode: {code}", weights=binWeights)
+                else:
+                    plt.hist(codeRmsValues, bins=50, range=(0, 20), label=f"PDGCode: {code}")
+            else:
+                continue
     
     plt.xlabel("RMS Values")
-    plt.ylabel("# Results")
+    if densityPlot:
+        plt.ylabel("Result Proportions")
+    else:
+        plt.ylabel("# Results")
     plt.legend()
+    plt.title("RMS Values")
     plt.show()
     return None
 
@@ -84,7 +97,7 @@ def findFeatures(clusters):
 
 def main():
     args = parser()
-    dataFile, output, numHitsThreshold, onlyPiMu, densityPlot = args.datafile, args.output, args.numhitsthreshold, args.onlypimu, args.densityPlot
+    dataFile, output, numHitsThreshold, onlyPiMu, densityPlot = args.datafile, args.output, args.numhitsthreshold, args.onlypimu, args.densityplot
 
     with open(dataFile, "r") as f:
         data = json.load(f)
