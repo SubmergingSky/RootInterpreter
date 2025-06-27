@@ -34,6 +34,7 @@ def dataUnpack(filename, treename):
         hitsX, hitsZ = tree["hitsX"].array(library="np"), tree["hitsZ"].array(library="np") #[mm]
         inputEnergies = tree["inputEnergies"].array(library="np")
 
+    print(f"There are {len(ids)} total events.")
     return (ids, energies, hitIds, hitsX, hitsZ, inputEnergies)
 
 # Packages the event data into clusters linking together hits from the same particle

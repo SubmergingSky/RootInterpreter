@@ -29,6 +29,12 @@ def parser():
         default=False,
         help="Whether to only show pions and muons in the result plot."
     )
+    parser.add_argument(
+        "-d", "--densityplot",
+        action="store_true",
+        default=False,
+        help="Whether to plot event densities rather than absolute quantities."
+    )
     return parser.parse_args()
 
 # Calculates the rms of each cluster's hits to a straight line and appends this to the cluster.
@@ -54,13 +60,13 @@ def meanEnergyDeposition(cluster):
     return cluster
 
 # Plots a histogram of RMS error for each particle type
-def rmsErrorPlot(clusters, numHitsthreshold, onlypimu):
+def rmsErrorPlot(clusters, numHitsthreshold, onlyPiMu, densityPlot):
     numHits = np.array([len(cluster.get("hits")) for cluster in clusters])
     PDGCodes, rmsValues= np.array([cluster.get("PDGCode") for cluster in clusters])[numHits>=numHitsthreshold], np.array([cluster.get("linearRmsError") for cluster in clusters])[numHits>=numHitsthreshold], 
     for code in np.unique(PDGCodes):
-        if onlypimu and (code!=211 and code !=13): continue
+        if onlyPiMu and (code!=211 and code !=13): continue
         codeRmsValues = rmsValues[PDGCodes==int(code)]
-        if len(codeRmsValues)>0: plt.hist(codeRmsValues, bins=50, range=(0, 20), label=f"PDGCode: {code}")
+        if len(codeRmsValues)>0: plt.hist(codeRmsValues, bins=50, range=(0, 20), label=f"PDGCode: {code}", density=densityPlot)
     
     plt.xlabel("RMS Values")
     plt.ylabel("# Results")
@@ -78,14 +84,14 @@ def findFeatures(clusters):
 
 def main():
     args = parser()
-    dataFile, output, numHitsThreshold, onlypimu = args.datafile, args.output, args.numhitsthreshold, args.onlypimu
+    dataFile, output, numHitsThreshold, onlyPiMu, densityPlot = args.datafile, args.output, args.numhitsthreshold, args.onlypimu, args.densityPlot
 
     with open(dataFile, "r") as f:
         data = json.load(f)
     
     featuredClusters = findFeatures(data)
     print(f"There are {len(featuredClusters)} total clusters.")
-    rmsErrorPlot(featuredClusters, numHitsThreshold, onlypimu)
+    rmsErrorPlot(featuredClusters, numHitsThreshold, onlyPiMu, densityPlot)
 
     if output:
         with open("Data/featured_data.json", "w") as f:
