@@ -24,9 +24,9 @@ def parser():
         help="The minimum number of hits a cluster must have to be considered."
     )
     parser.add_argument(
-        "-p", "--onlypm",
+        "-p", "--onlypimu",
         action="store_true",
-        default=True,
+        default=False,
         help="Whether to only show pions and muons in the result plot."
     )
     return parser.parse_args()
@@ -54,11 +54,11 @@ def meanEnergyDeposition(cluster):
     return cluster
 
 # Plots a histogram of RMS error for each particle type
-def rmsErrorPlot(clusters, numHitsthreshold, onlypm):
+def rmsErrorPlot(clusters, numHitsthreshold, onlypimu):
     numHits = np.array([len(cluster.get("hits")) for cluster in clusters])
     PDGCodes, rmsValues= np.array([cluster.get("PDGCode") for cluster in clusters])[numHits>=numHitsthreshold], np.array([cluster.get("linearRmsError") for cluster in clusters])[numHits>=numHitsthreshold], 
     for code in np.unique(PDGCodes):
-        if onlypm and (code!=211 and code !=13): continue
+        if onlypimu and (code!=211 and code !=13): continue
         codeRmsValues = rmsValues[PDGCodes==int(code)]
         if len(codeRmsValues)>0: plt.hist(codeRmsValues, bins=50, range=(0, 20), label=f"PDGCode: {code}")
     
@@ -68,6 +68,7 @@ def rmsErrorPlot(clusters, numHitsthreshold, onlypm):
     plt.show()
     return None
 
+# Calculates each feature and appends to each cluster.
 def findFeatures(clusters):
     for cluster in clusters:
         cluster = rmsLinearFit(cluster)
@@ -77,14 +78,14 @@ def findFeatures(clusters):
 
 def main():
     args = parser()
-    dataFile, output, numHitsThreshold, onlypm = args.datafile, args.output, args.numhitsthreshold, args.onlypm
+    dataFile, output, numHitsThreshold, onlypimu = args.datafile, args.output, args.numhitsthreshold, args.onlypimu
 
     with open(dataFile, "r") as f:
         data = json.load(f)
     
     featuredClusters = findFeatures(data)
     print(f"There are {len(featuredClusters)} total clusters.")
-    rmsErrorPlot(featuredClusters, numHitsThreshold, onlypm)
+    rmsErrorPlot(featuredClusters, numHitsThreshold, onlypimu)
 
     if output:
         with open("Data/featured_data.json", "w") as f:
