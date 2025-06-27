@@ -43,8 +43,8 @@ def createMasks(neutrinoCodes, PDGCodes, particleTypes, systemTypes):
 
     return particleTypes, systemTypes
 
-# Plots the colourised hits for a given event
-def hitsPlot(hitPositions, particleTypes, systemTypes, markNeutrino, markerSize=0.4):
+# Plots the colourised hits for a given event.
+def eventPlot(hitPositions, particleTypes, systemTypes, markNeutrino, markerSize=0.4):
     if markNeutrino:
         neutrinoMask = systemTypes[2]["mask"]
         for pType in particleTypes:
@@ -64,6 +64,33 @@ def hitsPlot(hitPositions, particleTypes, systemTypes, markNeutrino, markerSize=
     plt.xlabel("X Position /mm")
     plt.ylabel("Z Position /mm")
     plt.show()
+
+    return None
+
+# Plots the hitmap of a given cluster.
+def particlePlot(cluster):
+    xCoords, zCoords = np.array(cluster["hits"])[:,0], np.array(cluster["hits"])[:,1]
+    plt.scatter(xCoords, zCoords, s=0.4)
+    plt.title(f"{cluster["eventId"]}   {cluster["hitId"]}")
+    plt.show()
+    return None
+
+
+# TEST FUNCTION
+def particleTest():
+    with open("Data/featured_data.json", "r") as f:
+        data = json.load(f)
+
+    validClusters = []
+    for cluster in data:
+        if cluster["PDGCode"]==13 and cluster["linearRmsError"]>5:
+            validClusters.append(cluster)
+        else:
+            continue
+    with open("Data/temp.json", "w") as f:
+        json.dump(validClusters[0:5], f, indent=4)
+    for i in range(5):
+        particlePlot(validClusters[i])
 
     return None
 
@@ -99,7 +126,7 @@ def main():
         isFromNeutrinos, PDGCodes, hitPositions = np.array(isFromNeutrinos), np.array(PDGCodes), np.array(hitPositions)
 
         particleTypesMasked, systemTypesMasked = createMasks(isFromNeutrinos, PDGCodes, particleTypes, systemTypes)
-        hitsPlot(hitPositions, particleTypesMasked, systemTypesMasked, markNeutrino)
+        eventPlot(hitPositions, particleTypesMasked, systemTypesMasked, markNeutrino)
 
     return None
     
