@@ -32,19 +32,19 @@ def dataUnpack(filename, treename):
         energies = tree["energies"].array(library="np") #[GeV]
         hitIds = tree["hitIds"].array(library="np") # 8/9 nnnnnnnnnn "PDG code" nnnnn "particle counter"
         hitsX, hitsZ = tree["hitsX"].array(library="np"), tree["hitsZ"].array(library="np") #[mm]
-        hitWidths = tree["hitWidths"].array(library="np") #[mm]
+        hitWidths, hitHeights = tree["hitWidths"].array(library="np"), tree["hitHeights"].array(library="np") #[mm]
         LArTPCVolumeIds = tree["LArTPCVolumeIds"].array(library="np")
         inputEnergies = tree["inputEnergies"].array(library="np")
 
     print(f"There are {len(ids)} total events.")
-    return (ids, energies, hitIds, hitsX, hitsZ, hitWidths, LArTPCVolumeIds, inputEnergies)
+    return (ids, energies, hitIds, hitsX, hitsZ, hitWidths, hitHeights, LArTPCVolumeIds, inputEnergies)
 
 # Packages the event data into clusters linking together hits from the same particle
 def createClusters(data):
     clusters = []
-    ids, energies, hitIds, hitsX, hitsZ, hitWidths, LArTPCVolumeIds, inputEnergies = data
+    ids, energies, hitIds, hitsX, hitsZ, hitWidths, hitHeights, LArTPCVolumeIds, inputEnergies = data
     for i in range(ids.shape[0]):
-        eventHits = np.column_stack((hitsX[i], hitsZ[i]))
+        eventHits, eventHitGeometries = np.column_stack((hitsX[i], hitsZ[i])), np.column_stack((hitWidths[i], hitHeights[i]))
 
         uniqueHitIds = np.unique(hitIds[i])
         for hitId in uniqueHitIds:
@@ -58,7 +58,7 @@ def createClusters(data):
                 "PDGCode": int(str(hitId)[1:11]),
                 "counter": int(str(hitId)[-5:]),
                 "hits": eventHits[(hitIds[i]==hitId)].tolist(),
-                "hitWidths": hitWidths[i][(hitIds[i]==hitId)].tolist(),
+                "hitGeometries": eventHitGeometries[(hitIds[i]==hitId)].tolist(),
                 "inputEnergies": inputEnergies[i][(hitIds[i]==hitId)].tolist()
             }
             clusters.append(cluster)

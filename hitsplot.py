@@ -1,5 +1,5 @@
 import numpy as np
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt, matplotlib.patches as patches, matplotlib.collections as collections
 import json
 import argparse
 
@@ -20,7 +20,7 @@ def parser():
     parser.add_argument(
         "-v", "--viewevents",
         type=int,
-        default=2,
+        default=1,
         help="The number of events to visualise."
     )
     parser.add_argument(
@@ -43,6 +43,7 @@ def createMasks(neutrinoCodes, PDGCodes, particleTypes, systemTypes):
 
     return particleTypes, systemTypes
 
+'''
 # Plots the colourised hits for a given event.
 def eventPlot(hitPositions, particleTypes, systemTypes, markNeutrino, markerSize=0.3):
     if markNeutrino:
@@ -66,6 +67,56 @@ def eventPlot(hitPositions, particleTypes, systemTypes, markNeutrino, markerSize
     plt.show()
 
     return None
+'''
+
+def eventPlot(hitPositions, hitGeometries, particleTypes, systemTypes, markNeutrino):
+    fig, ax = plt.subplots(figsize=(10,8))
+    if markNeutrino:
+        neutrinoMask = systemTypes[2]["mask"]
+        for pType in particleTypes:
+            centresX, centresZ = hitPositions[:,0][pType["mask"] & neutrinoMask], hitPositions[:,1][pType["mask"] & neutrinoMask]
+            widths, heights = hitGeometries[:,0][pType["mask"] & neutrinoMask], hitGeometries[:,1][pType["mask"] & neutrinoMask]
+            rectangles = []
+            for i in range(len(centresX)):
+                cornerX, cornerZ = centresX[i] - widths[i]/2, centresZ[i] - heights[i]/2
+                rect = patches.Rectangle((cornerX, cornerZ), widths[i], heights[i])
+                rectangles.append(rect)
+            ax.add_collection(collections.PatchCollection(rectangles, facecolor="black", edgecolor="black", linewidth=0.5, alpha=0.7))
+            
+            centresX, centresZ = hitPositions[:,0][pType["mask"] & ~neutrinoMask], hitPositions[:,1][pType["mask"] & ~neutrinoMask]
+            widths, heights = hitGeometries[:,0][pType["mask"] & ~neutrinoMask], hitGeometries[:,1][pType["mask"] & ~neutrinoMask]
+            rectangles = []
+            for i in range(len(centresX)):
+                cornerX, cornerZ = centresX[i] - widths[i]/2, centresZ[i] - heights[i]/2
+                rect = patches.Rectangle((cornerX, cornerZ), widths[i], heights[i])
+                rectangles.append(rect)
+            ax.add_collection(collections.PatchCollection(rectangles, facecolor=pType["colour"], edgecolor=pType["colour"], linewidth=0.5, alpha=0.7))
+    else:
+        for pType in particleTypes:
+            centresX, centresZ = hitPositions[:,0][pType["mask"]], hitPositions[:,1][pType["mask"]]
+            widths, heights = hitGeometries[:,0][pType["mask"]], hitGeometries[:,1][pType["mask"]]
+            rectangles = []
+            for i in range(len(centresX)):
+                cornerX, cornerZ = centresX[i] - widths[i]/2, centresZ[i] - heights[i]/2
+                rect = patches.Rectangle((cornerX, cornerZ), widths[i], heights[i])
+                rectangles.append(rect)
+            ax.add_collection(collections.PatchCollection(rectangles, facecolor=pType["colour"], edgecolor=pType["colour"], linewidth=0.5, alpha=0.7))
+
+    miscType = systemTypes[1]
+    centresX, centresZ = hitPositions[:,0][miscType["mask"]], hitPositions[:,1][miscType["mask"]]
+    widths, heights = hitGeometries[:,0][miscType["mask"]], hitGeometries[:,1][miscType["mask"]]
+    rectangles = []
+    for i in range(len(centresX)):
+        cornerX, cornerZ = centresX[i] - widths[i]/2, centresZ[i] - heights[i]/2
+        rect = patches.Rectangle((cornerX, cornerZ), widths[i], heights[i])
+        rectangles.append(rect)
+    ax.add_collection(collections.PatchCollection(rectangles, facecolor=miscType["colour"], edgecolor=miscType["colour"], linewidth=0.5, alpha=0.7))
+    
+    ax.autoscale_view()
+    ax.set_title("W View")
+    ax.set_xlabel("X Position /mm")
+    ax.set_ylabel("Z Position /mm")
+    plt.show()
 
 # Plots the hitmap of a given cluster.
 def particlePlot(cluster):
@@ -117,16 +168,17 @@ def main():
     eventIds = np.unique([cluster.get("eventId") for cluster in data])
     for i in range(skipEvents, min(len(eventIds), skipEvents+viewEvents)):
         eventClusters = [cluster for cluster in data if cluster.get("eventId")==eventIds[i]]
-        isFromNeutrinos, PDGCodes, hitPositions = [], [], []
+        isFromNeutrinos, PDGCodes, hitPositions, hitGeometries = [], [], [], []
         for cluster in eventClusters:
-            for hit in cluster["hits"]:
+            for hit, hitGeometry in zip(cluster["hits"], cluster["hitGeometries"]):
                 isFromNeutrinos.append(cluster["isFromNeutrino"])
                 PDGCodes.append(cluster["PDGCode"])
                 hitPositions.append(hit)
-        isFromNeutrinos, PDGCodes, hitPositions = np.array(isFromNeutrinos), np.array(PDGCodes), np.array(hitPositions)
+                hitGeometries.append(hitGeometry)
+        isFromNeutrinos, PDGCodes, hitPositions, hitGeometries = np.array(isFromNeutrinos), np.array(PDGCodes), np.array(hitPositions), np.array(hitGeometries)
 
         particleTypesMasked, systemTypesMasked = createMasks(isFromNeutrinos, PDGCodes, particleTypes, systemTypes)
-        eventPlot(hitPositions, particleTypesMasked, systemTypesMasked, markNeutrino)
+        eventPlot(hitPositions, hitGeometries, particleTypesMasked, systemTypesMasked, markNeutrino)
 
     return None
     
