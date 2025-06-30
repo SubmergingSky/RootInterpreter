@@ -40,7 +40,7 @@ def parser():
 # Calculates the rms of each cluster's hits to a straight line.
 def rmsLinearFit(cluster):
     hits = cluster["hits"]
-    if len(hits)<2:
+    if len(hits)<3:
         linearRmsError = 0
     else:
         centroid = np.mean(hits, axis=0)
@@ -59,10 +59,21 @@ def meanEnergyDeposition(cluster):
     cluster["meanEnergyDeposition"] = np.mean(inputEnergies)
     return cluster
 
+# Calculates the mean RMS difference in energy deposition between hits.
+def rmsRateEnergyDeposition(cluster):
+    inputEnergies = cluster["inputEnergies"]
+    if len(inputEnergies)<2:
+        rmsRate = 0
+    else:
+        differences = np.diff(inputEnergies)
+        rmsRate = np.sqrt(np.mean(differences**2))
+    cluster["rmsRateEnergyDeposition"] = rmsRate
+    return cluster
+
 # Calculates the distance between the track's endpoints in mm.
 def endPointsDistance(cluster):
     trackStart, trackEnd = np.array(cluster["hits"][0]), np.array(cluster["hits"][-1])
-    cluster["trackLength"] = np.linalg.norm(trackEnd-trackStart)
+    cluster["endpointsDistance"] = np.linalg.norm(trackEnd-trackStart)
     return cluster
 
 # Calculates the number of hits in the particle's track.
@@ -70,13 +81,28 @@ def numHits(cluster):
     cluster["numHits"] = len(cluster["hits"])
     return cluster
 
+# Calculates of the mean RMS gap between hits.
+def rmsHitGap(cluster):
+    hits = cluster["hits"]
+    if len(hits)<2:
+        rmsGap = 0
+    else:
+        differences = np.diff(hits, axis=0)
+        distances = np.linalg.norm(differences, axis=0)
+        rmsGap = np.sqrt(np.mean(distances**2))
+    
+    cluster["rmsHitGap"] = rmsGap
+    return cluster
+
 # Calculates each feature and appends to each cluster.
 def findFeatures(clusters):
     for cluster in clusters:
+        cluster = numHits(cluster)
+        cluster = endPointsDistance(cluster)
         cluster = rmsLinearFit(cluster)
         cluster = meanEnergyDeposition(cluster)
-        cluster = endPointsDistance(cluster)
-        cluster = numHits(cluster)
+        cluster = rmsRateEnergyDeposition(cluster)
+        cluster = rmsHitGap(cluster)
 
     return clusters
 
@@ -109,6 +135,7 @@ def featurePlot(clusters, feature, numHitsThreshold, onlyPiMu, densityPlot):
     plt.show()
     return None
 
+# Features: linearRmsError, meanEnergyDeposition, rmsRateEnergyDeposition, endpointsDistance, numHits, rmsHitGap
 def main(feature="linearRmsError"):
     args = parser()
     dataFile, output, numHitsThreshold, onlyPiMu, densityPlot = args.datafile, args.output, args.numhitsthreshold, args.onlypimu, args.densityplot
