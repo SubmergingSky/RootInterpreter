@@ -32,7 +32,7 @@ def parser():
     parser.add_argument(
         "-p", "--densityplot",
         action="store_true",
-        default=False,
+        default=True,
         help="Whether to plot event densities rather than absolute quantities."
     )
     return parser.parse_args()
@@ -40,7 +40,7 @@ def parser():
 # Calculates the rms of each cluster's hits to a straight line.
 def rmsLinearFit(cluster):
     hits = cluster["hits"]
-    if len(hits)<2:
+    if len(hits)<3:
         linearRmsError = 0
     else:
         centroid = np.mean(hits, axis=0)
@@ -59,10 +59,21 @@ def meanEnergyDeposition(cluster):
     cluster["meanEnergyDeposition"] = np.mean(inputEnergies)
     return cluster
 
+# Calculates the mean RMS difference in energy deposition between hits.
+def rmsRateEnergyDeposition(cluster):
+    inputEnergies = cluster["inputEnergies"]
+    if len(inputEnergies)<2:
+        rmsRate = 0
+    else:
+        differences = np.diff(inputEnergies)
+        rmsRate = np.sqrt(np.mean(differences**2))
+    cluster["rmsRateEnergyDeposition"] = rmsRate
+    return cluster
+
 # Calculates the distance between the track's endpoints in mm.
 def endPointsDistance(cluster):
     trackStart, trackEnd = np.array(cluster["hits"][0]), np.array(cluster["hits"][-1])
-    cluster["trackLength"] = np.linalg.norm(trackEnd-trackStart)
+    cluster["endpointsDistance"] = np.linalg.norm(trackEnd-trackStart)
     return cluster
 
 # Calculates the number of hits in the particle's track.
@@ -75,6 +86,7 @@ def findFeatures(clusters):
     for cluster in clusters:
         cluster = rmsLinearFit(cluster)
         cluster = meanEnergyDeposition(cluster)
+        cluster = rmsRateEnergyDeposition(cluster)
         cluster = endPointsDistance(cluster)
         cluster = numHits(cluster)
 
@@ -109,6 +121,7 @@ def featurePlot(clusters, feature, numHitsThreshold, onlyPiMu, densityPlot):
     plt.show()
     return None
 
+# Features: linearRmsError, meanEnergyDeposition, rmsRateEnergyDeposition, endpointsDistance, numHits
 def main(feature="linearRmsError"):
     args = parser()
     dataFile, output, numHitsThreshold, onlyPiMu, densityPlot = args.datafile, args.output, args.numhitsthreshold, args.onlypimu, args.densityplot
