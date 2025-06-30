@@ -1,5 +1,5 @@
 import numpy as np
-import matplotlib.pyplot as plt, matplotlib.patches as patches, matplotlib.collections as collections
+import matplotlib.pyplot as plt, matplotlib.patches as patch, matplotlib.collections as collections
 import json
 import argparse
 
@@ -43,80 +43,38 @@ def createMasks(neutrinoCodes, PDGCodes, particleTypes, systemTypes):
 
     return particleTypes, systemTypes
 
-'''
 # Plots the colourised hits for a given event.
-def eventPlot(hitPositions, particleTypes, systemTypes, markNeutrino, markerSize=0.3):
-    if markNeutrino:
-        neutrinoMask = systemTypes[2]["mask"]
-        for pType in particleTypes:
-            xCoords, zCoords = hitPositions[:,0][pType["mask"] & neutrinoMask], hitPositions[:,1][pType["mask"] & neutrinoMask]
-            plt.scatter(xCoords, zCoords, s=4*markerSize, c="k", marker="x")
-            xCoords, zCoords = hitPositions[:,0][pType["mask"] & ~neutrinoMask], hitPositions[:,1][pType["mask"] & ~neutrinoMask]
-            plt.scatter(xCoords, zCoords, s=markerSize, c=pType["colour"], marker=".")
-    else:
-        for pType in particleTypes:
-            xCoords, zCoords = hitPositions[:,0][pType["mask"]], hitPositions[:,1][pType["mask"]]
-            plt.scatter(xCoords, zCoords, s=markerSize, c=pType["colour"], marker=".")
-    miscType = systemTypes[1]
-    xCoords, zCoords = hitPositions[:,0][miscType["mask"]], hitPositions[:,1][miscType["mask"]]
-    plt.scatter(xCoords, zCoords, s=markerSize, c=miscType["colour"])
-
-    plt.title("W View")
-    plt.xlabel("X Position /mm")
-    plt.ylabel("Z Position /mm")
-    plt.show()
-
-    return None
-'''
-
 def eventPlot(hitPositions, hitGeometries, particleTypes, systemTypes, markNeutrino):
+    def patchesCreation(hitPositions, hitGeometries, mask, colour):
+        centresX, centresZ = hitPositions[:,0][mask], hitPositions[:,1][mask]
+        widths, heights = hitGeometries[:,0][mask], hitGeometries[:,1][mask]
+        patches = []
+        for i in range(len(centresX)):
+            cornerX, cornerZ = centresX[i] - widths[i]/2, centresZ[i] - heights[i]/2
+            rect = patch.Rectangle((cornerX, cornerZ), widths[i], heights[i])
+            patches.append(rect)
+        ax.add_collection(collections.PatchCollection(patches, facecolor=colour, edgecolor=colour, linewidth=0.5, alpha=0.7))
+        return None
+    
     fig, ax = plt.subplots(figsize=(10,8))
     if markNeutrino:
         neutrinoMask = systemTypes[2]["mask"]
         for pType in particleTypes:
-            centresX, centresZ = hitPositions[:,0][pType["mask"] & neutrinoMask], hitPositions[:,1][pType["mask"] & neutrinoMask]
-            widths, heights = hitGeometries[:,0][pType["mask"] & neutrinoMask], hitGeometries[:,1][pType["mask"] & neutrinoMask]
-            rectangles = []
-            for i in range(len(centresX)):
-                cornerX, cornerZ = centresX[i] - widths[i]/2, centresZ[i] - heights[i]/2
-                rect = patches.Rectangle((cornerX, cornerZ), widths[i], heights[i])
-                rectangles.append(rect)
-            ax.add_collection(collections.PatchCollection(rectangles, facecolor="black", edgecolor="black", linewidth=0.5, alpha=0.7))
-            
-            centresX, centresZ = hitPositions[:,0][pType["mask"] & ~neutrinoMask], hitPositions[:,1][pType["mask"] & ~neutrinoMask]
-            widths, heights = hitGeometries[:,0][pType["mask"] & ~neutrinoMask], hitGeometries[:,1][pType["mask"] & ~neutrinoMask]
-            rectangles = []
-            for i in range(len(centresX)):
-                cornerX, cornerZ = centresX[i] - widths[i]/2, centresZ[i] - heights[i]/2
-                rect = patches.Rectangle((cornerX, cornerZ), widths[i], heights[i])
-                rectangles.append(rect)
-            ax.add_collection(collections.PatchCollection(rectangles, facecolor=pType["colour"], edgecolor=pType["colour"], linewidth=0.5, alpha=0.7))
+            patchesCreation(hitPositions, hitGeometries, (pType["mask"] & neutrinoMask), "black")
+            patchesCreation(hitPositions, hitGeometries, (pType["mask"] & ~neutrinoMask), pType["colour"])
     else:
         for pType in particleTypes:
-            centresX, centresZ = hitPositions[:,0][pType["mask"]], hitPositions[:,1][pType["mask"]]
-            widths, heights = hitGeometries[:,0][pType["mask"]], hitGeometries[:,1][pType["mask"]]
-            rectangles = []
-            for i in range(len(centresX)):
-                cornerX, cornerZ = centresX[i] - widths[i]/2, centresZ[i] - heights[i]/2
-                rect = patches.Rectangle((cornerX, cornerZ), widths[i], heights[i])
-                rectangles.append(rect)
-            ax.add_collection(collections.PatchCollection(rectangles, facecolor=pType["colour"], edgecolor=pType["colour"], linewidth=0.5, alpha=0.7))
-
+            patchesCreation(hitPositions, hitGeometries, pType["mask"], pType["colour"])
     miscType = systemTypes[1]
-    centresX, centresZ = hitPositions[:,0][miscType["mask"]], hitPositions[:,1][miscType["mask"]]
-    widths, heights = hitGeometries[:,0][miscType["mask"]], hitGeometries[:,1][miscType["mask"]]
-    rectangles = []
-    for i in range(len(centresX)):
-        cornerX, cornerZ = centresX[i] - widths[i]/2, centresZ[i] - heights[i]/2
-        rect = patches.Rectangle((cornerX, cornerZ), widths[i], heights[i])
-        rectangles.append(rect)
-    ax.add_collection(collections.PatchCollection(rectangles, facecolor=miscType["colour"], edgecolor=miscType["colour"], linewidth=0.5, alpha=0.7))
-    
+    patchesCreation(hitPositions, hitGeometries, miscType["mask"], miscType["colour"])
+
     ax.autoscale_view()
     ax.set_title("W View")
     ax.set_xlabel("X Position /mm")
     ax.set_ylabel("Z Position /mm")
     plt.show()
+
+    return None 
 
 # Plots the hitmap of a given cluster.
 def particlePlot(cluster):
