@@ -26,7 +26,7 @@ def parser():
     parser.add_argument(
         "-m", "--onlypimu",
         action="store_true",
-        default=True,
+        default=False,
         help="Whether to only show pions and muons in the result plot."
     )
     parser.add_argument(
@@ -83,13 +83,17 @@ def numHits(cluster):
 
 # Calculates of the mean RMS gap between hits.
 def rmsHitGap(cluster):
-    hits = cluster["hits"]
+    hits, geometries = cluster["hits"], cluster["hitGeometries"]
     if len(hits)<2:
         rmsGap = 0
     else:
-        differences = np.diff(hits, axis=0)
-        distances = np.linalg.norm(differences, axis=0)
-        rmsGap = np.sqrt(np.mean(distances**2))
+        gapLengths = []
+        for i in range(len(hits)-1):
+            x1, z1, x2, z2 = hits[i][0], hits[i][1], hits[i+1][0], hits[i+1][1]
+            w1, h1, w2, h2 = geometries[i][0], geometries[i][1], geometries[i+1][0], geometries[i+1][1]
+            xGap, zGap = max(0, abs(x2-x1)-(w1+w2)/2), max(0, abs(z2-z1)-(h1+h2)/2)
+            gapLengths.append(np.sqrt(xGap**2+zGap**2))
+        rmsGap = np.sqrt(np.mean(np.array(gapLengths)**2))
     
     cluster["rmsHitGap"] = rmsGap
     return cluster
@@ -136,7 +140,7 @@ def featurePlot(clusters, feature, numHitsThreshold, onlyPiMu, densityPlot):
     return None
 
 # Features: linearRmsError, meanEnergyDeposition, rmsRateEnergyDeposition, endpointsDistance, numHits, rmsHitGap
-def main(feature="linearRmsError"):
+def main(feature="rmsHitGap"):
     args = parser()
     dataFile, output, numHitsThreshold, onlyPiMu, densityPlot = args.datafile, args.output, args.numhitsthreshold, args.onlypimu, args.densityplot
 
