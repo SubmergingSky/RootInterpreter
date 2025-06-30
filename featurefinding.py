@@ -9,7 +9,7 @@ def parser():
         "-d", "--datafile",
         type=str,
         default="Data/data.json",
-        help="Path to the input ROOT data file."
+        help="Path to the input data file."
     )
     parser.add_argument(
         "-o", "--output",
