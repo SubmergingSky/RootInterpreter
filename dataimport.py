@@ -32,30 +32,40 @@ def dataUnpack(filename, treename):
         energies = tree["energies"].array(library="np") #[GeV]
         hitIds = tree["hitIds"].array(library="np") # 8/9 nnnnnnnnnn "PDG code" nnnnn "particle counter"
         hitsX, hitsZ = tree["hitsX"].array(library="np"), tree["hitsZ"].array(library="np") #[mm]
+        LArTPCVolumeIds = tree["LArTPCVolumeIds"].array(library="np")
         inputEnergies = tree["inputEnergies"].array(library="np")
 
     print(f"There are {len(ids)} total events.")
-    return (ids, energies, hitIds, hitsX, hitsZ, inputEnergies)
+    return (ids, energies, hitIds, hitsX, hitsZ, LArTPCVolumeIds, inputEnergies)
 
 # Packages the event data into clusters linking together hits from the same particle
 def createClusters(data):
     clusters = []
-    ids, energies, hitIds, hitsX, hitsZ, inputEnergies = data
+    ids, energies, hitIds, hitsX, hitsZ, LArTPCVolumeIds, inputEnergies = data
     for i in range(ids.shape[0]):
         eventHits = np.column_stack((hitsX[i], hitsZ[i]))
 
         uniqueHitIds = np.unique(hitIds[i])
         for hitId in uniqueHitIds:
+            uniqueTPCIds = set(LArTPCVolumeIds[i][(hitIds[i]==hitId)])
+
             cluster = {
                 "eventId": i,
                 "hitId": int(hitId),
                 "isFromNeutrino": str(hitId)[0]=="8",
+                "crossesCathode": len(uniqueTPCIds)>1,
                 "PDGCode": int(str(hitId)[1:11]),
                 "counter": int(str(hitId)[-5:]),
                 "hits": eventHits[(hitIds[i]==hitId)].tolist(),
                 "inputEnergies": inputEnergies[i][(hitIds[i]==hitId)].tolist()
             }
             clusters.append(cluster)
+
+    return clusters
+
+# Cleans the clusters by vetoing those that fulfill certain conditions.
+def cleanClusters(clusters):
+    clusters = [cluster for cluster in clusters if cluster["crossesCathode"]==False]
 
     return clusters
 
@@ -72,7 +82,9 @@ def main():
 
     data = dataUnpack(dataFile, treename)
     clusters = createClusters(data)
-    print(f"There are {len(clusters)} total clusters.")
+    print(f"There are {len(clusters)} total uncleaned clusters.")
+    clusters = cleanClusters(clusters)
+    print(f"There are {len(clusters)} total cleaned clusters.")
     dataOutput(clusters, outputFile)
 
     return None
