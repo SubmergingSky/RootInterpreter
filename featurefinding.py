@@ -32,7 +32,7 @@ def parser():
     parser.add_argument(
         "-p", "--densityplot",
         action="store_true",
-        default=True,
+        default=False,
         help="Whether to plot event densities rather than absolute quantities."
     )
     return parser.parse_args()
@@ -84,11 +84,11 @@ def numHits(cluster):
 # Calculates each feature and appends to each cluster.
 def findFeatures(clusters):
     for cluster in clusters:
+        cluster = numHits(cluster)
+        cluster = endPointsDistance(cluster)
         cluster = rmsLinearFit(cluster)
         cluster = meanEnergyDeposition(cluster)
         cluster = rmsRateEnergyDeposition(cluster)
-        cluster = endPointsDistance(cluster)
-        cluster = numHits(cluster)
 
     return clusters
 
