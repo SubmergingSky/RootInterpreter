@@ -81,6 +81,19 @@ def numHits(cluster):
     cluster["numHits"] = len(cluster["hits"])
     return cluster
 
+# Calculates of the mean RMS gap between hits.
+def rmsHitGap(cluster):
+    hits = cluster["hits"]
+    if len(hits)<2:
+        rmsGap = 0
+    else:
+        differences = np.diff(hits, axis=0)
+        distances = np.linalg.norm(differences, axis=0)
+        rmsGap = np.sqrt(np.mean(distances**2))
+    
+    cluster["rmsHitGap"] = rmsGap
+    return cluster
+
 # Calculates each feature and appends to each cluster.
 def findFeatures(clusters):
     for cluster in clusters:
@@ -89,6 +102,7 @@ def findFeatures(clusters):
         cluster = rmsLinearFit(cluster)
         cluster = meanEnergyDeposition(cluster)
         cluster = rmsRateEnergyDeposition(cluster)
+        cluster = rmsHitGap(cluster)
 
     return clusters
 
@@ -121,7 +135,7 @@ def featurePlot(clusters, feature, numHitsThreshold, onlyPiMu, densityPlot):
     plt.show()
     return None
 
-# Features: linearRmsError, meanEnergyDeposition, rmsRateEnergyDeposition, endpointsDistance, numHits
+# Features: linearRmsError, meanEnergyDeposition, rmsRateEnergyDeposition, endpointsDistance, numHits, rmsHitGap
 def main(feature="linearRmsError"):
     args = parser()
     dataFile, output, numHitsThreshold, onlyPiMu, densityPlot = args.datafile, args.output, args.numhitsthreshold, args.onlypimu, args.densityplot
