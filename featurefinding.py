@@ -2,13 +2,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 import json
 import argparse
+from sklearn.decomposition import PCA
 
 def parser():
     parser = argparse.ArgumentParser(description="Uses hit positions to identify features.")
     parser.add_argument(
         "-d", "--datafile",
         type=str,
-        default="Data/data.json",
+        default="data.json",
         help="Path to the input data file."
     )
     parser.add_argument(
@@ -51,6 +52,18 @@ def rmsLinearFit(cluster):
         linearRmsError = np.sqrt(np.mean(perpendicularDistances**2))
     
     cluster["linearRmsError"] = linearRmsError
+    return cluster
+
+def transverseWidth(cluster):
+    hits = cluster["hits"]
+    if len(hits)<2:
+        width = 0
+    else:
+        pca = PCA(n_components=2)
+        pca.fit(hits)
+        width = np.sqrt(pca.explained_variance_[1])
+    
+    cluster["transverseWidth"] = width
     return cluster
 
 # Calculates the average rate of energy deposition.
@@ -107,6 +120,16 @@ def findFeatures(clusters):
         cluster = meanEnergyDeposition(cluster)
         cluster = rmsRateEnergyDeposition(cluster)
         cluster = rmsHitGap(cluster)
+        cluster = transverseWidth(cluster)
+        
+    return clusters
+
+# Removes certain keys from each cluser.
+def removeKeys(clusters):
+    for cluster in clusters:
+        del cluster["hits"]
+        del cluster["hitGeometries"]
+        del cluster["inputEnergies"]
 
     return clusters
 
@@ -139,12 +162,12 @@ def featurePlot(clusters, feature, numHitsThreshold, onlyPiMu, densityPlot):
     plt.show()
     return None
 
-# Features: linearRmsError, meanEnergyDeposition, rmsRateEnergyDeposition, endpointsDistance, numHits, rmsHitGap
+# Features: linearRmsError, transverseWidth, meanEnergyDeposition, rmsRateEnergyDeposition, endpointsDistance, numHits, rmsHitGap
 def main(feature="rmsHitGap"):
     args = parser()
     dataFile, output, numHitsThreshold, onlyPiMu, densityPlot = args.datafile, args.output, args.numhitsthreshold, args.onlypimu, args.densityplot
 
-    with open(dataFile, "r") as f:
+    with open(f"Data/{dataFile}", "r") as f:
         data = json.load(f)
     
     featuredClusters = findFeatures(data)
@@ -152,8 +175,9 @@ def main(feature="rmsHitGap"):
     featurePlot(featuredClusters, feature, numHitsThreshold, onlyPiMu, densityPlot)
 
     if output:
-        with open("Data/featured_data.json", "w") as f:
-            json.dump(featuredClusters, f, indent=4)
+        reducedClusters = removeKeys(featuredClusters)
+        with open(f"Data/featured_{dataFile}", "w") as f:
+            json.dump(reducedClusters, f, indent=4)
         print("Output file created")
 
     return None

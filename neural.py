@@ -14,42 +14,43 @@ def parser():
     parser.add_argument(
         "-d", "--trainingfile",
         type=str,
-        default="Data/featured_data.json",
+        default="featured_data.json",
         help="Path to the input training file."
     )
     parser.add_argument(
         "-t", "--testingfile",
         type=str,
-        default="Data/testing_data.json",
+        default="testing_data.json",
         help="Path to the input testing file."
     )
     return parser.parse_args()
 
 def dataUnpack(dataFile):
-    with open(dataFile, "r") as f:
+    with open(f"Data/{dataFile}", "r") as f:
         data = json.load(f)
     
     clusters = [cluster for cluster in data if cluster["PDGCode"] in [211, 13]]
     targets = np.array([cluster["PDGCode"]==211 for cluster in clusters]).astype(int)
     features = []
     for cluster in clusters:
-        clusterFeatures = [cluster["linearRmsError"], cluster["meanEnergyDeposition"], cluster["rmsRateEnergyDeposition"], cluster["endpointsDistance"], cluster["numHits"], cluster["rmsHitGap"]]
+        clusterFeatures = [cluster["linearRmsError"], cluster["transverseWidth"], cluster["meanEnergyDeposition"], cluster["rmsRateEnergyDeposition"], cluster["endpointsDistance"], cluster["numHits"], cluster["rmsHitGap"]]
         features.append(clusterFeatures)
 
     return (features, targets)
 
-def classification(data):
+def classification(data, resample=True):
     features, targets = data
-    smote = BorderlineSMOTE(random_state=1)
     print(f"Original dataset shape: {Counter(targets)}")
-    featuresResampled, targetsResampled = smote.fit_resample(features, targets)
-    print(f"Resampled dataset shape: {Counter(targetsResampled)}")
+    if resample:
+        smote = BorderlineSMOTE(random_state=1)
+        features, targets = smote.fit_resample(features, targets)
+        print(f"Resampled dataset shape: {Counter(targets)}")
 
-    clf = MLPClassifier(solver="lbfgs", alpha=1e-5, hidden_layer_sizes=(50), max_iter=1000, random_state=1)
-    clf.fit(featuresResampled, targetsResampled)
+    clf = MLPClassifier(solver="lbfgs", alpha=1e-5, hidden_layer_sizes=(50,10), max_iter=1500, random_state=1)
+    clf.fit(features, targets)
     return clf
 
-def evaluation(clf, testingData):
+def evaluation(clf, testingData, displayPartial=False):
     prediction = clf.predict(testingData[0])
     f1score = f1_score(testingData[1], prediction, average="macro")
 
@@ -58,9 +59,10 @@ def evaluation(clf, testingData):
     print("--- Macro-Averaged F1 Score ---")
     print(f"Macro-Averaged F1-Score: {f1score:.3f}")
 
-    fig, ax = plt.subplots(figsize=(12, 6))
-    PartialDependenceDisplay.from_estimator(clf, testingData[0], features=[0,1,2,3,4,5], ax=ax)
-    plt.show()
+    if displayPartial:
+        fig, ax = plt.subplots(figsize=(12, 6))
+        PartialDependenceDisplay.from_estimator(clf, testingData[0], features=[0,1,2,3,4,5,6], ax=ax)
+        plt.show()
 
     return None
 
