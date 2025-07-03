@@ -9,6 +9,7 @@ from imblearn.over_sampling import BorderlineSMOTE
 from collections import Counter
 from sklearn.preprocessing import StandardScaler, RobustScaler
 from sklearn.model_selection import GridSearchCV
+from imblearn.pipeline import Pipeline
 
 def parser():
     parser = argparse.ArgumentParser(description="Uses ANNs to make predictions on particle classifications.")
@@ -23,6 +24,12 @@ def parser():
         type=str,
         default="testing_data.json",
         help="Path to the input testing file."
+    )
+    parser.add_argument(
+        "-p", "--displaypartial",
+        action="store_true",
+        default=False,
+        help="Whether to show the partial dependance plots."
     )
     return parser.parse_args()
 
@@ -40,82 +47,71 @@ def dataUnpack(dataFile):
         features.append(clusterFeatures)
 
     print("Data unpacked")
-    return (features, targets)
+    return features, targets
 
-# Resamples and scales the initial data.
-def preprocessing(data):
-    features, targets = data
-    print(f"Original dataset shape: {Counter(targets)}")
+def makeModel(xTrain, yTrain):
+    print(f"Original dataset shape: {Counter(yTrain)}")
+    pipeline = Pipeline([
+        ("scaler", RobustScaler()),
+        ("sampler", BorderlineSMOTE(random_state=1)),
+        ("mlp", MLPClassifier(max_iter=1500, random_state=1, early_stopping=True))
+        ])
+    param_grid = {
+        "mlp__hidden_layer_sizes": [(50,), (100,), (90,45), (50,10), (100,50), (70,40)]
+    }
 
-    smote = BorderlineSMOTE(random_state=1)
-    features, targets = smote.fit_resample(features, targets)
-    print(f"Resampled dataset shape: {Counter(targets)}")
+    gridSearch = GridSearchCV(pipeline, param_grid, scoring="f1_macro", n_jobs=8)
+    print("Beginning grid search")
+    gridSearch.fit(xTrain, yTrain)
+    print(f"Grid search complete. Best layer setup identified: {gridSearch.best_params_}")
+    clf = gridSearch.best_estimator_
 
-    scaler = RobustScaler().fit(features)
-    features = scaler.transform(features)
+    return clf
 
-    return (features, targets), scaler
+def makeModelSpecific(xTrain, yTrain):
+    print(f"Original dataset shape: {Counter(yTrain)}")
+    pipeline = Pipeline([
+        ("scaler", RobustScaler()),
+        ("sampler", BorderlineSMOTE(random_state=1)),
+        ("mlp", MLPClassifier(hidden_layer_sizes=(50,10), max_iter=1500, random_state=1))
+        ])
 
-# Produces a fitted NN for given data.
-def classification(features, targets):
-    clf = MLPClassifier(solver="lbfgs", alpha=1e-5, hidden_layer_sizes=(50,10), max_iter=1500, random_state=1, early_stopping=True).fit(features, targets)
+    clf = pipeline.fit(xTrain, yTrain)
+    print("Fitting complete")
 
-    print("Neural network fitted")
     return clf
 
 # Evaluates the success of the model.
-def evaluation(clf, scaler, data, displayPartial=False):
-    features, targets = data
-    prediction = clf.predict(scaler.transform(features))
-    f1score = f1_score(targets, prediction, average="macro")
+def evaluation(clf, data):
+    xTest, yTest = data
+    prediction = clf.predict(xTest)
+    f1score = f1_score(yTest, prediction, average="macro")
 
     print("--- Classification Report ---")
-    print(classification_report(targets, prediction))
+    print(classification_report(yTest, prediction))
     print("--- Macro-Averaged F1 Score ---")
     print(f"Macro-Averaged F1-Score: {f1score:.3f}")
 
-    if displayPartial:
-        fig, ax = plt.subplots(figsize=(12, 6))
-        PartialDependenceDisplay.from_estimator(clf, features, features=[0,1,2,3,4,5], ax=ax)
-        plt.show()
-
     return None
 
-def layerTesting(data):
-    features, targets = data
-    print(f"Original dataset shape: {Counter(targets)}")
-    smote = BorderlineSMOTE(random_state=1)
-    features, targets = smote.fit_resample(features, targets)
-    print(f"Resampled dataset shape: {Counter(targets)}")
-    scaler = RobustScaler().fit(features)
-    features = scaler.transform(features)
-
-    param_grid = {
-        'hidden_layer_sizes': [
-            (50,),
-            (100,),
-            (50, 25),
-            (100, 50),
-            (50, 10)
-        ]
-    }
-    gridSearch = GridSearchCV(MLPClassifier(max_iter=1500, random_state=1), param_grid, cv=3, scoring="f1_macro")
-    gridSearch.fit(features, targets)
-    print(f"Best parameters found: {gridSearch.best_params_}")
+def partialPlot(clf, xTrain):
+    fig, ax = plt.subplots(figsize=(12, 6))
+    PartialDependenceDisplay.from_estimator(clf, xTrain, features=[0,1,2,3,4,5], ax=ax)
+    plt.show()
     return None
 
 
 def main():
     args = parser()
-    trainingFile, testingFile = args.trainingfile, args.testingfile
+    trainingFile, testingFile, displayPartial = args.trainingfile, args.testingfile, args.displaypartial
 
     trainingData = dataUnpack(trainingFile)
-    trainingData, scaler = preprocessing(trainingData)
-    
-    clf = classification(*trainingData)
-    
+    clf = makeModel(*trainingData)
+    #clf = makeModelSpecific(*trainingData)
+
     testingData = dataUnpack(testingFile)
-    evaluation(clf, scaler, testingData)
+    evaluation(clf, testingData)
+    if displayPartial: partialPlot(clf, trainingData[0])
 
     return None
     
