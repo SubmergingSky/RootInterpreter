@@ -4,7 +4,7 @@ import argparse
 import matplotlib.pyplot as plt
 from sklearn.neural_network import MLPClassifier
 from sklearn.metrics import classification_report, f1_score
-from sklearn.inspection import PartialDependenceDisplay
+from sklearn.inspection import PartialDependenceDisplay, permutation_importance
 from imblearn.over_sampling import BorderlineSMOTE
 from collections import Counter
 from sklearn.preprocessing import StandardScaler, RobustScaler
@@ -43,7 +43,7 @@ def dataUnpack(dataFile):
     targets = np.array([cluster["PDGCode"]==211 for cluster in clusters]).astype(int)
     features = []
     for cluster in clusters:
-        clusterFeatures = [cluster["linearRmsError"], cluster["transverseWidth"], cluster["meanEnergyDeposition"], cluster["rmsRateEnergyDeposition"], cluster["endpointsDistance"], cluster["rmsHitGap"]]
+        clusterFeatures = [cluster["transverseWidth"], cluster["meanEnergyDeposition"], cluster["endpointsDistance"]]
         features.append(clusterFeatures)
 
     print("Data unpacked")
@@ -73,7 +73,7 @@ def makeModelSpecific(xTrain, yTrain):
     pipeline = Pipeline([
         ("scaler", RobustScaler()),
         ("sampler", BorderlineSMOTE(random_state=1)),
-        ("mlp", MLPClassifier(hidden_layer_sizes=(50,10), max_iter=1500, random_state=1))
+        ("mlp", MLPClassifier(hidden_layer_sizes=(90,45), max_iter=1500, random_state=1))
         ])
 
     clf = pipeline.fit(xTrain, yTrain)
@@ -94,9 +94,16 @@ def evaluation(clf, data):
 
     return None
 
-def partialPlot(clf, xTrain):
+def partialDependence(clf, xTrain, testingData):
     fig, ax = plt.subplots(figsize=(12, 6))
-    PartialDependenceDisplay.from_estimator(clf, xTrain, features=[0,1,2,3,4,5], ax=ax)
+    PartialDependenceDisplay.from_estimator(clf, xTrain, features=[0,1,2], ax=ax)
+    
+
+    xTest, yTest = testingData
+    permImportance = permutation_importance(clf, xTest, yTest, random_state=1, n_jobs=8, scoring="f1_macro")
+    for i in permImportance.importances_mean.argsort()[::-1]:
+        print(f"Feature {i:<2}: {permImportance.importances_mean[i]:.4f} +/- {permImportance.importances_std[i]:.4f}")
+
     plt.show()
     return None
 
@@ -111,7 +118,7 @@ def main():
 
     testingData = dataUnpack(testingFile)
     evaluation(clf, testingData)
-    if displayPartial: partialPlot(clf, trainingData[0])
+    if displayPartial: partialDependence(clf, trainingData[0], testingData)
 
     return None
     
