@@ -111,6 +111,17 @@ def rmsHitGap(cluster):
     cluster["rmsHitGap"] = rmsGap
     return cluster
 
+# Calculates the closest proximity to the edge of the detector.
+def edgeProximity(cluster):
+    xMin, xMax, yMin, yMax = -203, 203, 0, 505
+    hits = np.array(cluster["hits"])
+    leftDist, rightDist, topDist, bottomDist = hits[:,0] - xMin, xMax - hits[:,0], yMax - hits[:,1], hits[:,1] - yMin
+    combinedDist = np.stack((leftDist, rightDist, topDist, bottomDist), axis=1)
+    minDist = np.min(combinedDist, axis=1)
+
+    cluster["edgeProximity"] = np.min(minDist)
+    return cluster
+
 # Calculates each feature and appends to each cluster.
 def findFeatures(clusters):
     for cluster in clusters:
@@ -121,6 +132,7 @@ def findFeatures(clusters):
         cluster = rmsRateEnergyDeposition(cluster)
         cluster = rmsHitGap(cluster)
         cluster = transverseWidth(cluster)
+        cluster = edgeProximity(cluster)
         
     return clusters
 
@@ -172,7 +184,7 @@ def main(feature="rmsHitGap"):
     
     featuredClusters = findFeatures(data)
     print(f"There are {len(featuredClusters)} total clusters.")
-    featurePlot(featuredClusters, feature, numHitsThreshold, onlyPiMu, densityPlot)
+    #featurePlot(featuredClusters, feature, numHitsThreshold, onlyPiMu, densityPlot)
 
     if output:
         reducedClusters = removeKeys(featuredClusters)
