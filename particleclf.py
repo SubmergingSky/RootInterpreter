@@ -40,7 +40,7 @@ def dataUnpack(dataFile):
     clusters = np.array([cluster for cluster in data if cluster["PDGCode"] in [211, 13]])
     features, targets = [], []
     for cluster in clusters:
-        clusterFeatures = [cluster["numHits"], cluster["endpointsDistance"], cluster["linearRmsError"], cluster["meanEnergyDeposition"], cluster["rmsRateEnergyDeposition"], cluster["rmsHitGap"], cluster["transverseWidth"], cluster["edgeProximity"]]
+        clusterFeatures = [cluster["numHits"], cluster["endpointsDistance"], cluster["linearRmsError"], cluster["meanEnergyDeposition"], cluster["rmsRateEnergyDeposition"], cluster["rmsHitGap"], cluster["transverseWidth"], cluster["edgeProximity"], cluster["angle"]]
         features.append(clusterFeatures)
         if not cluster["isFromNeutrino"]:
             targets.append(0)
@@ -60,7 +60,7 @@ def makeModel(xTrain, yTrain):
         ("mlp", MLPClassifier(max_iter=1500, random_state=1, early_stopping=True))
         ])
     param_grid = {
-        "mlp__hidden_layer_sizes": [(50,), (100,), (90,45), (50,10), (100,50), (70,40)]
+        "mlp__hidden_layer_sizes": [(32,), (64,), (32,16), (64,32), (100,50), (64,32,16)]
     }
 
     gridSearch = GridSearchCV(pipeline, param_grid, scoring="f1_macro", n_jobs=8)
@@ -99,7 +99,7 @@ def evaluation(clf, data):
 
 def partialDependence(clf, xTrain, testingData):
     fig, ax = plt.subplots(figsize=(12, 6))
-    PartialDependenceDisplay.from_estimator(clf, xTrain, features=[0,1,2,3,4,5,6,7], target=2, ax=ax)
+    PartialDependenceDisplay.from_estimator(clf, xTrain, features=[0,1,2,3,4,5,6,7,8], target=2, ax=ax)
     
     xTest, yTest = testingData
     permImportance = permutation_importance(clf, xTest, yTest, random_state=1, n_jobs=8, scoring="f1_macro")
@@ -114,8 +114,8 @@ def main():
     trainingFile, testingFile, displayPartial = args.trainingfile, args.testingfile, args.displaypartial
 
     trainingData = dataUnpack(trainingFile)
-    #clf = makeModel(*trainingData)
-    clf = makeModelSpecific(*trainingData)
+    clf = makeModel(*trainingData)
+    #clf = makeModelSpecific(*trainingData)
 
     testingData = dataUnpack(testingFile)
     evaluation(clf, testingData)

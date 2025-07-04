@@ -122,6 +122,18 @@ def edgeProximity(cluster):
     cluster["edgeProximity"] = np.min(minDist)
     return cluster
 
+# Calculates the angle of the particle's path.
+def clusterAngle(cluster):
+    hits = cluster["hits"]
+    if len(hits)<2:
+        angle = 0
+    else:
+        directionVector = PCA(n_components=2).fit(hits).components_[0]
+        angle = np.arctan2(directionVector[1], directionVector[0])
+
+    cluster["angle"] = angle
+    return cluster
+
 # Calculates each feature and appends to each cluster.
 def findFeatures(clusters):
     for cluster in clusters:
@@ -133,6 +145,7 @@ def findFeatures(clusters):
         cluster = rmsHitGap(cluster)
         cluster = transverseWidth(cluster)
         cluster = edgeProximity(cluster)
+        cluster = clusterAngle(cluster)
         
     return clusters
 
