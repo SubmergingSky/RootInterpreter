@@ -3,13 +3,14 @@ import json
 import argparse
 import matplotlib.pyplot as plt
 from sklearn.neural_network import MLPClassifier
-from sklearn.metrics import classification_report, f1_score
+from sklearn.metrics import classification_report, f1_score, confusion_matrix, ConfusionMatrixDisplay
 from sklearn.inspection import PartialDependenceDisplay, permutation_importance
 from imblearn.over_sampling import BorderlineSMOTE
 from collections import Counter
 from sklearn.preprocessing import RobustScaler
 from sklearn.model_selection import GridSearchCV
 from imblearn.pipeline import Pipeline
+from lightgbm import LGBMClassifier
 
 def parser():
     parser = argparse.ArgumentParser(description="Uses ANNs to make predictions on particle classifications.")
@@ -54,13 +55,23 @@ def dataUnpack(dataFile):
 
 def makeModel(xTrain, yTrain):
     print(f"Original dataset shape: {Counter(yTrain)}")
-    pipeline = Pipeline([
+    """ pipeline = Pipeline([
         ("scaler", RobustScaler()),
         ("sampler", BorderlineSMOTE(random_state=1)),
         ("mlp", MLPClassifier(max_iter=1500, random_state=1, early_stopping=True))
         ])
     param_grid = {
         "mlp__hidden_layer_sizes": [(32,), (64,), (32,16), (64,32), (100,50), (64,32,16)]
+    } """
+    pipeline = Pipeline([
+        ("scaler", RobustScaler()),
+        ("sampler", BorderlineSMOTE(random_state=1)),
+        ("lgbm", LGBMClassifier(random_state=1))
+    ])
+    param_grid = {
+        'lgbm__n_estimators': [100, 200],
+        'lgbm__learning_rate': [0.05, 0.1],
+        'lgbm__num_leaves': [31, 50]
     }
 
     gridSearch = GridSearchCV(pipeline, param_grid, scoring="f1_macro", n_jobs=8)
@@ -86,14 +97,20 @@ def makeModelSpecific(xTrain, yTrain):
 
 # Evaluates the success of the model.
 def evaluation(clf, data):
+    classLabels = ["Cosmic", "Muon", "Pion"]
     xTest, yTest = data
     prediction = clf.predict(xTest)
     f1score = f1_score(yTest, prediction, average="macro")
+    cm = confusion_matrix(yTest, prediction)
 
     print("--- Classification Report ---")
     print(classification_report(yTest, prediction))
     print("--- Macro-Averaged F1 Score ---")
     print(f"Macro-Averaged F1-Score: {f1score:.3f}")
+
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=classLabels)
+    disp.plot(cmap=plt.cm.Blues)
+    plt.show()
 
     return None
 

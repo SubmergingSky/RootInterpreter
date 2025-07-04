@@ -62,10 +62,11 @@ def featurePlot(clusters, features, numHitsThreshold, densityPlot):
                 else:
                     ax.hist(codeFeatureValues, bins=50, label=f"PDGCode: {code}", histtype="step", lw=2)
             
-            ax.set_title(f"{feature} Distribution")
-            ax.set_xlabel("Value")
-            ax.set_ylabel("Proportions" if densityPlot else "Frequency")
-            ax.legend()
+        ax.set_title(f"{feature} Distribution", fontsize=8)
+        ax.set_xlabel("Value", fontsize=6)
+        ax.set_ylabel("Proportions" if densityPlot else "Frequency", fontsize=6)
+        ax.legend()
+        ax.tick_params(axis='both', labelsize=6)
     
     plt.tight_layout()
     plt.show()
