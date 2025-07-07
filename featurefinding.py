@@ -69,7 +69,11 @@ def transverseWidth(cluster):
 # Calculates the average rate of energy deposition.
 def meanEnergyDeposition(cluster):
     inputEnergies = cluster["inputEnergies"]
-    cluster["meanEnergyDeposition"] = np.mean(inputEnergies)
+    quarterLen = len(inputEnergies) // 4
+
+    cluster["meanEnergyDep"] = np.mean(inputEnergies)
+    cluster["meanEnergyDepBegin"] = np.mean(inputEnergies[:quarterLen])
+    cluster["meanEnergyDepEnd"] = np.mean(inputEnergies[-quarterLen:])
     return cluster
 
 # Calculates the mean RMS difference in energy deposition between hits.
@@ -114,12 +118,17 @@ def rmsHitGap(cluster):
 # Calculates the closest proximity to the edge of the detector.
 def edgeProximity(cluster):
     xMin, xMax, yMin, yMax = -203, 203, 0, 505
-    hits = np.array(cluster["hits"])
-    leftDist, rightDist, topDist, bottomDist = hits[:,0] - xMin, xMax - hits[:,0], yMax - hits[:,1], hits[:,1] - yMin
-    combinedDist = np.stack((leftDist, rightDist, topDist, bottomDist), axis=1)
-    minDist = np.min(combinedDist, axis=1)
+    fullHits = np.array(cluster["hits"])
+    halfLen = len(fullHits) // 2
+    hitsHalves, edgeDist = [fullHits[:halfLen], fullHits[-halfLen:]], []
+    for hits in hitsHalves:
+        leftDist, rightDist, topDist, bottomDist = hits[:,0] - xMin, xMax - hits[:,0], yMax - hits[:,1], hits[:,1] - yMin
+        combinedDist = np.stack((leftDist, rightDist, topDist, bottomDist), axis=1)
+        minDist = np.min(combinedDist, axis=1)
+        edgeDist.append(np.min(minDist))
 
-    cluster["edgeProximity"] = np.min(minDist)
+    cluster["edgeProximityBegin"] = edgeDist[0]
+    cluster["edgeProximityEnd"] = edgeDist[1]
     return cluster
 
 # Calculates the angle of the particle's path.
