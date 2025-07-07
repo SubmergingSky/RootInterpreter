@@ -35,13 +35,15 @@ def parser():
     return parser.parse_args()
 
 def dataUnpack(dataFile):
+    featureNames = ["numHits", "endpointsDistance", "linearRmsError", "meanEnergyDep", "meanEnergyDepBegin", "meanEnergyDepEnd", "rmsRateEnergyDeposition", "rmsHitGap", "transverseWidth", "edgeProximityBegin", "edgeProximityEnd", "angle", "vertexActivity"]
     with open(f"Data/{dataFile}", "r") as f:
         data = json.load(f)
     
     clusters = np.array([cluster for cluster in data if cluster["PDGCode"] in [211, 13]])
     features, targets = [], []
     for cluster in clusters:
-        clusterFeatures = [cluster["numHits"], cluster["endpointsDistance"], cluster["linearRmsError"], cluster["meanEnergyDeposition"], cluster["rmsRateEnergyDeposition"], cluster["rmsHitGap"], cluster["transverseWidth"], cluster["edgeProximity"], cluster["angle"]]
+        clusterFeatures = []
+        for feature in featureNames: clusterFeatures.append(cluster[feature])
         features.append(clusterFeatures)
         if not cluster["isFromNeutrino"]:
             targets.append(0)
@@ -116,7 +118,7 @@ def evaluation(clf, data):
 
 def partialDependence(clf, xTrain, testingData):
     fig, ax = plt.subplots(figsize=(12, 6))
-    PartialDependenceDisplay.from_estimator(clf, xTrain, features=[0,1,2,3,4,5,6,7,8], target=2, ax=ax)
+    PartialDependenceDisplay.from_estimator(clf, xTrain, features=[0,1,2,3,4,5,6,7,8,9,10,11], target=2, ax=ax)
     
     xTest, yTest = testingData
     permImportance = permutation_importance(clf, xTest, yTest, random_state=1, n_jobs=8, scoring="f1_macro")
@@ -131,8 +133,8 @@ def main():
     trainingFile, testingFile, displayPartial = args.trainingfile, args.testingfile, args.displaypartial
 
     trainingData = dataUnpack(trainingFile)
-    clf = makeModel(*trainingData)
-    #clf = makeModelSpecific(*trainingData)
+    #clf = makeModel(*trainingData)
+    clf = makeModelSpecific(*trainingData)
 
     testingData = dataUnpack(testingFile)
     evaluation(clf, testingData)

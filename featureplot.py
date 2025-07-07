@@ -78,7 +78,7 @@ def main():
     dataFile, numHitsThreshold, densityPlot = args.datafile, args.numhitsthreshold, args.densityplot
 
     clusters = dataUnpack(dataFile)
-    features = ["linearRmsError", "transverseWidth", "meanEnergyDeposition", "rmsRateEnergyDeposition", "endpointsDistance", "numHits", "rmsHitGap", "edgeProximity", "angle"]
+    features = ["linearRmsError", "transverseWidth", "meanEnergyDep", "rmsRateEnergyDeposition", "endpointsDistance", "numHits", "rmsHitGap", "edgeProximity", "angle"]
     featurePlot(clusters, features, numHitsThreshold, densityPlot)
 
     return None
