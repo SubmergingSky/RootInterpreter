@@ -29,6 +29,18 @@ def parser():
         default=False,
         help="Whether to mark particles that result from a neutrino interaction."
     )
+    parser.add_argument(
+        "-c", "--markcosmics",
+        action="store_true",
+        default=False,
+        help="Whether to mark particles that have been deemed clear cosmics."
+    )
+    parser.add_argument(
+        "-3", "--threedplot",
+        action="store_true",
+        default=False,
+        help="Whether to use a 3D plot."
+    )
     return parser.parse_args()
 
 # Creates the hit masks for a given event
@@ -42,43 +54,54 @@ def createMasks(neutrinoCodes, clearCosmicCodes, PDGCodes, particleTypes, system
 
     return particleTypes, systemTypes
 
-# Plots the colourised hits for a given event.
-def eventPlot(hitPositions, hitGeometries, particleTypes, systemTypes, markNeutrino, markCosmics=True):
-    def patchesCreation(hitPositions, hitGeometries, mask, colour):
-        centresX, centresZ = hitPositions[:,0][mask], hitPositions[:,2][mask]
-        widths, heights = hitGeometries[:,0][mask], hitGeometries[:,1][mask]
-        patches = []
-        for i in range(len(centresX)):
-            cornerX, cornerZ = centresX[i] - widths[i]/2, centresZ[i] - heights[i]/2
-            rect = patch.Rectangle((cornerX, cornerZ), widths[i], heights[i])
-            patches.append(rect)
-        ax.add_collection(collections.PatchCollection(patches, facecolor=colour, edgecolor=colour, linewidth=0.5, alpha=0.7))
+# Plots a given detector event.
+def eventPlot(hitPositions, hitGeometries, particleTypes, systemTypes, markNeutrino, markCosmics, threeD):
+    def plotHits(hitPositions, hitGeometries, mask, colour):
+        centresX, centresY, centresZ = hitPositions[:,0][mask], hitPositions[:,1][mask], hitPositions[:,2][mask]
+        if threeD:
+            ax.scatter(centresX, centresY, centresZ, c=colour, s=0.4)
+        else:
+            cellSizeX, cellSizeZ = hitGeometries[:,0][mask], hitGeometries[:,2][mask]
+            patches = []
+            for i in range(len(centresX)):
+                cornerX, cornerZ = centresX[i] - cellSizeX[i]/2, centresZ[i] - cellSizeZ[i]/2
+                rect = patch.Rectangle((cornerX, cornerZ), cellSizeX[i], cellSizeZ[i])
+                patches.append(rect)
+            ax.add_collection(collections.PatchCollection(patches, facecolor=colour, edgecolor=colour, linewidth=0.5, alpha=0.7))
         return None
     
-    fig, ax = plt.subplots(figsize=(10,8))
+    if threeD:
+        fig = plt.figure(figsize=(8,6))
+        ax = fig.add_subplot(111, projection="3d")
+        ax.set_xlabel("X Position /mm")
+        ax.set_ylabel("Y Position /mm")
+        ax.set_zlabel("Z Position /mm")
+        ax.set_title('3D Event Plot')
+    else:
+        fig, ax = plt.subplots(figsize=(10,8))
+        ax.set_title("W View")
+        ax.set_xlabel("X Position /mm")
+        ax.set_ylabel("Z Position /mm")
+    
     if markNeutrino:
         neutrinoMask = systemTypes[2]["mask"]
         for pType in particleTypes:
-            patchesCreation(hitPositions, hitGeometries, (pType["mask"] & neutrinoMask), "black")
-            patchesCreation(hitPositions, hitGeometries, (pType["mask"] & ~neutrinoMask), pType["colour"])
+            plotHits(hitPositions, hitGeometries, (pType["mask"] & neutrinoMask), "black")
+            plotHits(hitPositions, hitGeometries, (pType["mask"] & ~neutrinoMask), pType["colour"])
     elif markCosmics:
         cosmicMask = systemTypes[3]["mask"]
         for pType in particleTypes:
-            patchesCreation(hitPositions, hitGeometries, (pType["mask"] & cosmicMask), "black")
-            patchesCreation(hitPositions, hitGeometries, (pType["mask"] & ~cosmicMask), pType["colour"])
+            plotHits(hitPositions, hitGeometries, (pType["mask"] & cosmicMask), "black")
+            plotHits(hitPositions, hitGeometries, (pType["mask"] & ~cosmicMask), pType["colour"])
     else:
         for pType in particleTypes:
-            patchesCreation(hitPositions, hitGeometries, pType["mask"], pType["colour"])
+            plotHits(hitPositions, hitGeometries, pType["mask"], pType["colour"])
     miscType = systemTypes[1]
-    patchesCreation(hitPositions, hitGeometries, miscType["mask"], miscType["colour"])
+    plotHits(hitPositions, hitGeometries, miscType["mask"], miscType["colour"])
 
     ax.autoscale_view()
-    ax.set_title("W View")
-    ax.set_xlabel("X Position /mm")
-    ax.set_ylabel("Z Position /mm")
     plt.show()
-
-    return None 
+    return None
 
 # Plots the hitmap of a given cluster.
 def particlePlot(cluster):
@@ -110,7 +133,7 @@ def particleTest():
 # Defines the particle types and then visualises each event
 def main():
     args = parser()
-    dataFile, skipEvents, viewEvents, markNeutrino = args.datafile, args.skipevents, args.viewevents, args.markneutrino
+    dataFile, skipEvents, viewEvents, markNeutrino, markCosmics, threeDPlot = args.datafile, args.skipevents, args.viewevents, args.markneutrino, args.markcosmics, args.threedplot
 
     particleTypes = [
         {"name": "proton", "PDG": 2212, "colour": "red", "mask": []},
@@ -143,7 +166,7 @@ def main():
                 hitGeometries.append(hitGeometry)
         isFromNeutrinos, isClearCosmic, PDGCodes, hitPositions, hitGeometries = np.array(isFromNeutrinos), np.array(isClearCosmic), np.array(PDGCodes), np.array(hitPositions), np.array(hitGeometries)
         particleTypesMasked, systemTypesMasked = createMasks(isFromNeutrinos, isClearCosmic, PDGCodes, particleTypes, systemTypes)
-        eventPlot(hitPositions, hitGeometries, particleTypesMasked, systemTypesMasked, markNeutrino)
+        eventPlot(hitPositions, hitGeometries, particleTypesMasked, systemTypesMasked, markNeutrino, markCosmics, threeDPlot)
 
     return None
     

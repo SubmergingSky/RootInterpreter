@@ -8,41 +8,41 @@ def parser():
     parser.add_argument(
         "-d", "--datafile",
         type=str,
-        default="Data/data.root",
-        help="Path to the input ROOT data file."
+        default="data.root",
+        help="Path of the input ROOT data file."
     )
     parser.add_argument(
         "-o", "--outputfile",
         type=str,
-        default="Data/data.json",
-        help="Name of the output JSON file."
+        default="data.json",
+        help="Path of the output JSON file."
     )
     parser.add_argument(
         "-t", "--treename",
         type=str,
-        default="mc_info",
+        default="info",
         help="Name of the ROOT tree."
     )
     return parser.parse_args()
 
-# Unpacks a root file and returns a tuple of event data
+# Unpacks a root file and returns a tuple of event data.
 def dataUnpack(filename, treename):
     with uproot.open(f"{filename}:{treename}") as tree:
         ids = tree["ids"].array(library="np")
         hitIds = tree["hitIds"].array(library="np") # 8/9 nnnnnnnnnn "PDG code" nnnnn "particle counter"
         hitsX, hitsY, hitsZ = tree["hitsX"].array(library="np"), tree["hitsY"].array(library="np"), tree["hitsZ"].array(library="np") #[mm]
-        hitWidths, hitHeights = tree["hitWidths"].array(library="np"), tree["hitHeights"].array(library="np") #[mm]
+        cellSizesX, cellSizesY, cellSizesZ = tree["cellSizesX"].array(library="np"), tree["cellSizesY"].array(library="np"), tree["cellSizesZ"].array(library="np") #[mm]
         inputEnergies = tree["inputEnergies"].array(library="np")
 
     print(f"There are {len(ids)} total events.")
-    return (ids, hitIds, hitsX, hitsY, hitsZ, hitWidths, hitHeights, inputEnergies)
+    return (ids, hitIds, hitsX, hitsY, hitsZ, cellSizesX, cellSizesY, cellSizesZ, inputEnergies)
 
-# Packages the event data into clusters linking together hits from the same particle
+# Packages the event data into clusters linking together hits from the same particle.
 def createClusters(data):
     clusters = []
-    ids, hitIds, hitsX, hitsY, hitsZ, hitWidths, hitHeights, inputEnergies = data
+    ids, hitIds, hitsX, hitsY, hitsZ, cellSizesX, cellSizesY, cellSizesZ, inputEnergies = data
     for i in range(ids.shape[0]):
-        eventHits, eventHitGeometries = np.column_stack((hitsX[i], hitsY[i], hitsZ[i])), np.column_stack((hitWidths[i], hitHeights[i]))
+        eventHits, eventHitGeometries = np.column_stack((hitsX[i], hitsY[i], hitsZ[i])), np.column_stack((cellSizesX[i], cellSizesY[i], cellSizesZ[i]))
 
         uniqueHitIds = np.unique(hitIds[i])
         for hitId in uniqueHitIds:
@@ -69,8 +69,9 @@ def cleanClusters(clusters, onlyNeutrino=False):
 
     return clusters
 
+# Outputs the clusters to a json file.
 def dataOutput(data, outputFile):
-    with open(outputFile, "w") as f:
+    with open(f"Data/{outputFile}", "w") as f:
         json.dump(data, f, indent=4)
     print("Output file created")
     return None
@@ -80,7 +81,7 @@ def main():
     args = parser()
     dataFile, treename, outputFile = args.datafile, args.treename, args.outputfile
 
-    data = dataUnpack(dataFile, treename)
+    data = dataUnpack(f"Data/{dataFile}", treename)
     clusters = createClusters(data)
     print(f"There are {len(clusters)} total uncleaned clusters.")
     clusters = cleanClusters(clusters)
