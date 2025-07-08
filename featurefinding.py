@@ -69,7 +69,11 @@ def transverseWidth(cluster):
 # Calculates the average rate of energy deposition.
 def meanEnergyDeposition(cluster):
     inputEnergies = cluster["inputEnergies"]
-    cluster["meanEnergyDeposition"] = np.mean(inputEnergies)
+    quarterLen = len(inputEnergies) // 4
+
+    cluster["meanEnergyDep"] = np.mean(inputEnergies)
+    cluster["meanEnergyDepBegin"] = (np.mean(inputEnergies[:quarterLen]) if len(inputEnergies)>3 else np.mean(inputEnergies))
+    cluster["meanEnergyDepEnd"] = (np.mean(inputEnergies[-quarterLen:]) if len(inputEnergies)>3 else np.mean(inputEnergies))
     return cluster
 
 # Calculates the mean RMS difference in energy deposition between hits.
@@ -114,12 +118,32 @@ def rmsHitGap(cluster):
 # Calculates the closest proximity to the edge of the detector.
 def edgeProximity(cluster):
     xMin, xMax, yMin, yMax = -203, 203, 0, 505
-    hits = np.array(cluster["hits"])
-    leftDist, rightDist, topDist, bottomDist = hits[:,0] - xMin, xMax - hits[:,0], yMax - hits[:,1], hits[:,1] - yMin
-    combinedDist = np.stack((leftDist, rightDist, topDist, bottomDist), axis=1)
-    minDist = np.min(combinedDist, axis=1)
+    fullHits, edgeDist = np.array(cluster["hits"]), []
+    if len(fullHits)<2:
+        hitsHalves = [fullHits]
+    else:
+        halfLen = len(fullHits) // 2
+        hitsHalves = [fullHits[:halfLen], fullHits[-halfLen:]]
+    for hits in hitsHalves:
+        leftDist, rightDist, topDist, bottomDist = hits[:,0] - xMin, xMax - hits[:,0], yMax - hits[:,1], hits[:,1] - yMin
+        combinedDist = np.stack((leftDist, rightDist, topDist, bottomDist), axis=1)
+        minDist = np.min(combinedDist, axis=1)
+        edgeDist.append(np.min(minDist))
 
-    cluster["edgeProximity"] = np.min(minDist)
+    cluster["edgeProximityBegin"] = edgeDist[0]
+    cluster["edgeProximityEnd"] = (edgeDist[1] if len(edgeDist)>1 else edgeDist[0])
+    return cluster
+
+# Calculates the angle of the particle's path.
+def clusterAngle(cluster):
+    hits = cluster["hits"]
+    if len(hits)<2:
+        angle = 0
+    else:
+        directionVector = PCA(n_components=2).fit(hits).components_[0]
+        angle = np.arctan2(directionVector[1], directionVector[0])
+
+    cluster["angle"] = angle
     return cluster
 
 # Calculates each feature and appends to each cluster.
@@ -133,6 +157,7 @@ def findFeatures(clusters):
         cluster = rmsHitGap(cluster)
         cluster = transverseWidth(cluster)
         cluster = edgeProximity(cluster)
+        cluster = clusterAngle(cluster)
         
     return clusters
 
