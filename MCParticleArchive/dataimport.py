@@ -29,28 +29,32 @@ def parser():
 def dataUnpack(filename, treename):
     with uproot.open(f"{filename}:{treename}") as tree:
         ids = tree["ids"].array(library="np")
+        energies = tree["energies"].array(library="np") #[GeV]
         hitIds = tree["hitIds"].array(library="np") # 8/9 nnnnnnnnnn "PDG code" nnnnn "particle counter"
-        hitsX, hitsY, hitsZ = tree["hitsX"].array(library="np"), tree["hitsY"].array(library="np"), tree["hitsZ"].array(library="np") #[mm]
+        hitsX, hitsZ = tree["hitsX"].array(library="np"), tree["hitsZ"].array(library="np") #[mm]
         hitWidths, hitHeights = tree["hitWidths"].array(library="np"), tree["hitHeights"].array(library="np") #[mm]
+        LArTPCVolumeIds = tree["LArTPCVolumeIds"].array(library="np")
         inputEnergies = tree["inputEnergies"].array(library="np")
 
     print(f"There are {len(ids)} total events.")
-    return (ids, hitIds, hitsX, hitsY, hitsZ, hitWidths, hitHeights, inputEnergies)
+    return (ids, energies, hitIds, hitsX, hitsZ, hitWidths, hitHeights, LArTPCVolumeIds, inputEnergies)
 
 # Packages the event data into clusters linking together hits from the same particle
 def createClusters(data):
     clusters = []
-    ids, hitIds, hitsX, hitsY, hitsZ, hitWidths, hitHeights, inputEnergies = data
+    ids, energies, hitIds, hitsX, hitsZ, hitWidths, hitHeights, LArTPCVolumeIds, inputEnergies = data
     for i in range(ids.shape[0]):
-        eventHits, eventHitGeometries = np.column_stack((hitsX[i], hitsY[i], hitsZ[i])), np.column_stack((hitWidths[i], hitHeights[i]))
+        eventHits, eventHitGeometries = np.column_stack((hitsX[i], hitsZ[i])), np.column_stack((hitWidths[i], hitHeights[i]))
 
         uniqueHitIds = np.unique(hitIds[i])
         for hitId in uniqueHitIds:
+            uniqueTPCIds = set(LArTPCVolumeIds[i][(hitIds[i]==hitId)])
+
             cluster = {
                 "eventId": i,
                 "hitId": int(hitId),
                 "isFromNeutrino": str(hitId)[0]=="8",
-                "isClearCosmic": str(hitId)[0]=="7",
+                "crossesCathode": len(uniqueTPCIds)>1,
                 "PDGCode": int(str(hitId)[1:11]),
                 "counter": int(str(hitId)[-5:]),
                 "hits": eventHits[(hitIds[i]==hitId)].tolist(),
@@ -63,6 +67,7 @@ def createClusters(data):
 
 # Cleans the clusters by vetoing those that fulfill certain conditions.
 def cleanClusters(clusters, onlyNeutrino=False):
+    clusters = [cluster for cluster in clusters if cluster["crossesCathode"]==False]
     if onlyNeutrino:
         clusters = [cluster for cluster in clusters if cluster["isFromNeutrino"]==True]
         clusters = [cluster for cluster in clusters if cluster["PDGCode"]!=22]

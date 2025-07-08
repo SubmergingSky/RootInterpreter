@@ -20,7 +20,7 @@ def parser():
     parser.add_argument(
         "-v", "--viewevents",
         type=int,
-        default=2,
+        default=1,
         help="The number of events to visualise."
     )
     parser.add_argument(
@@ -32,20 +32,21 @@ def parser():
     return parser.parse_args()
 
 # Creates the hit masks for a given event
-def createMasks(neutrinoCodes, clearCosmicCodes, PDGCodes, particleTypes, systemTypes):
+def createMasks(neutrinoCodes, PDGCodes, particleTypes, systemTypes):
     systemTypes[0]["mask"] = np.full(len(PDGCodes), False)
     for pType in particleTypes:
         currentMask = (PDGCodes==pType["PDG"])
         pType["mask"] = currentMask
         systemTypes[0]["mask"] = systemTypes[0]["mask"] | currentMask
-    systemTypes[1]["mask"], systemTypes[2]["mask"], systemTypes[3]["mask"] = ~systemTypes[0]["mask"], (neutrinoCodes), (clearCosmicCodes)
+    systemTypes[1]["mask"] = ~systemTypes[0]["mask"]
+    systemTypes[2]["mask"] = (neutrinoCodes)
 
     return particleTypes, systemTypes
 
 # Plots the colourised hits for a given event.
-def eventPlot(hitPositions, hitGeometries, particleTypes, systemTypes, markNeutrino, markCosmics=True):
+def eventPlot(hitPositions, hitGeometries, particleTypes, systemTypes, markNeutrino):
     def patchesCreation(hitPositions, hitGeometries, mask, colour):
-        centresX, centresZ = hitPositions[:,0][mask], hitPositions[:,2][mask]
+        centresX, centresZ = hitPositions[:,0][mask], hitPositions[:,1][mask]
         widths, heights = hitGeometries[:,0][mask], hitGeometries[:,1][mask]
         patches = []
         for i in range(len(centresX)):
@@ -61,11 +62,6 @@ def eventPlot(hitPositions, hitGeometries, particleTypes, systemTypes, markNeutr
         for pType in particleTypes:
             patchesCreation(hitPositions, hitGeometries, (pType["mask"] & neutrinoMask), "black")
             patchesCreation(hitPositions, hitGeometries, (pType["mask"] & ~neutrinoMask), pType["colour"])
-    elif markCosmics:
-        cosmicMask = systemTypes[3]["mask"]
-        for pType in particleTypes:
-            patchesCreation(hitPositions, hitGeometries, (pType["mask"] & cosmicMask), "black")
-            patchesCreation(hitPositions, hitGeometries, (pType["mask"] & ~cosmicMask), pType["colour"])
     else:
         for pType in particleTypes:
             patchesCreation(hitPositions, hitGeometries, pType["mask"], pType["colour"])
@@ -82,7 +78,7 @@ def eventPlot(hitPositions, hitGeometries, particleTypes, systemTypes, markNeutr
 
 # Plots the hitmap of a given cluster.
 def particlePlot(cluster):
-    xCoords, zCoords = np.array(cluster["hits"])[:,0], np.array(cluster["hits"])[:,2]
+    xCoords, zCoords = np.array(cluster["hits"])[:,0], np.array(cluster["hits"])[:,1]
     plt.scatter(xCoords, zCoords, s=0.4)
     plt.title(f"{cluster["eventId"]}   {cluster["hitId"]}")
     plt.show()
@@ -116,15 +112,12 @@ def main():
         {"name": "proton", "PDG": 2212, "colour": "red", "mask": []},
         {"name": "chargedpion", "PDG": 211, "colour": "green", "mask": []},
         {"name": "muon", "PDG": 13, "colour": "blue", "mask": []},
-        {"name": "photon", "PDG": 22, "colour": "orange", "mask": []},
-        {"name": "electron", "PDG": 11, "colour": "pink", "mask": []},
-        {"name": "muonneutrino", "PDG": 14, "colour": "red", "mask": []}
+        {"name": "photon", "PDG": 22, "colour": "orange", "mask": []}
     ]
     systemTypes = [
         {"name": "all", "PDG": -1, "colour": "grey", "mask": []},
         {"name": "misc", "PDG": -1, "colour": "grey", "mask": []},
-        {"name": "parentneutrino", "PDG": -1, "colour": "grey", "mask": []},
-        {"name": "clearcosmic", "PDG": -1, "colour": "grey", "mask": []}
+        {"name": "parentneutrino", "PDG": -1, "colour": "grey", "mask": []}
     ]
 
     with open(dataFile, "r") as f:
@@ -133,16 +126,16 @@ def main():
     eventIds = np.unique([cluster.get("eventId") for cluster in data])
     for i in range(skipEvents, min(len(eventIds), skipEvents+viewEvents)):
         eventClusters = [cluster for cluster in data if cluster.get("eventId")==eventIds[i]]
-        isFromNeutrinos, isClearCosmic, PDGCodes, hitPositions, hitGeometries = [], [], [], [], []
+        isFromNeutrinos, PDGCodes, hitPositions, hitGeometries = [], [], [], []
         for cluster in eventClusters:
             for hit, hitGeometry in zip(cluster["hits"], cluster["hitGeometries"]):
                 isFromNeutrinos.append(cluster["isFromNeutrino"])
-                isClearCosmic.append(cluster["isClearCosmic"])
                 PDGCodes.append(cluster["PDGCode"])
                 hitPositions.append(hit)
                 hitGeometries.append(hitGeometry)
-        isFromNeutrinos, isClearCosmic, PDGCodes, hitPositions, hitGeometries = np.array(isFromNeutrinos), np.array(isClearCosmic), np.array(PDGCodes), np.array(hitPositions), np.array(hitGeometries)
-        particleTypesMasked, systemTypesMasked = createMasks(isFromNeutrinos, isClearCosmic, PDGCodes, particleTypes, systemTypes)
+        isFromNeutrinos, PDGCodes, hitPositions, hitGeometries = np.array(isFromNeutrinos), np.array(PDGCodes), np.array(hitPositions), np.array(hitGeometries)
+
+        particleTypesMasked, systemTypesMasked = createMasks(isFromNeutrinos, PDGCodes, particleTypes, systemTypes)
         eventPlot(hitPositions, hitGeometries, particleTypesMasked, systemTypesMasked, markNeutrino)
 
     return None
