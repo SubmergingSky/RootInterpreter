@@ -136,12 +136,12 @@ def main():
     dataFile, skipEvents, viewEvents, markNeutrino, markCosmics, threeDPlot = args.datafile, args.skipevents, args.viewevents, args.markneutrino, args.markcosmics, args.threedplot
 
     particleTypes = [
-        {"name": "proton", "PDG": 2212, "colour": "red", "mask": []},
+        {"name": "proton", "PDG": 2212, "colour": "pink", "mask": []},
         {"name": "chargedpion", "PDG": 211, "colour": "green", "mask": []},
-        {"name": "muon", "PDG": 13, "colour": "blue", "mask": []},
+        {"name": "muon", "PDG": 13, "colour": "purple", "mask": []},
         {"name": "photon", "PDG": 22, "colour": "orange", "mask": []},
-        {"name": "electron", "PDG": 11, "colour": "pink", "mask": []},
-        {"name": "muonneutrino", "PDG": 14, "colour": "red", "mask": []}
+        {"name": "electron", "PDG": 11, "colour": "blue", "mask": []},
+        {"name": "muonneutrino", "PDG": 14, "colour": "yellow", "mask": []}
     ]
     systemTypes = [
         {"name": "all", "PDG": -1, "colour": "grey", "mask": []},

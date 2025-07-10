@@ -149,15 +149,16 @@ def clusterAngle(cluster):
 # Calculates each feature and appends to each cluster.
 def findFeatures(clusters):
     for cluster in clusters:
-        cluster = numHits(cluster)
-        cluster = endPointsDistance(cluster)
-        cluster = rmsLinearFit(cluster)
-        cluster = meanEnergyDeposition(cluster)
-        cluster = rmsRateEnergyDeposition(cluster)
-        cluster = rmsHitGap(cluster)
-        cluster = transverseWidth(cluster)
-        cluster = edgeProximity(cluster)
-        cluster = clusterAngle(cluster)
+        if len(cluster["hits"])>1:
+            cluster = numHits(cluster)
+            cluster = endPointsDistance(cluster)
+            cluster = rmsLinearFit(cluster)
+            cluster = meanEnergyDeposition(cluster)
+            cluster = rmsRateEnergyDeposition(cluster)
+            cluster = rmsHitGap(cluster)
+            cluster = transverseWidth(cluster)
+            cluster = edgeProximity(cluster)
+            cluster = clusterAngle(cluster)
         
     return clusters
 

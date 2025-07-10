@@ -8,7 +8,7 @@ def parser():
     parser.add_argument(
         "-d", "--datafile",
         type=str,
-        default="data.json",
+        default="featured_data.json",
         help="Path to the input data file."
     )
     parser.add_argument(
@@ -28,10 +28,8 @@ def parser():
 def dataUnpack(dataFile):
     with open(f"Data/{dataFile}", "r") as f:
         data = json.load(f)
-
-    clusters = np.array([c for c in data if c["PDGCode"] in [211, 13]])
-    for c in clusters:
-        if c["PDGCode"]==13 and not c["isFromNeutrino"]: c["PDGCode"] = 0
+    
+    clusters = np.array([c for c in data])
     print(f"There are {len(clusters)} clusters.")
 
     return clusters
@@ -43,7 +41,7 @@ def featurePlot(clusters, features, numHitsThreshold, densityPlot):
     fig, axes = plt.subplots(nrows=plotRows, ncols=plotCols, figsize=(10, 5 * plotRows), layout="constrained")
     axes = axes.flatten()
 
-    numHits = np.array([cluster["numHits"] for cluster in clusters])
+    numHits = np.array([cluster["numPfoHits"] for cluster in clusters])
     PDGCodes = np.array([cluster["PDGCode"] for cluster in clusters])
 
     hitThresholdMask = (numHits>=numHitsThreshold)
@@ -78,7 +76,8 @@ def main():
     dataFile, numHitsThreshold, densityPlot = args.datafile, args.numhitsthreshold, args.densityplot
 
     clusters = dataUnpack(dataFile)
-    features = ["linearRmsError", "transverseWidth", "meanEnergyDep", "rmsRateEnergyDeposition", "endpointsDistance", "numHits", "rmsHitGap", "edgeProximity", "angle"]
+    #features = ["linearRmsError", "transverseWidth", "meanEnergyDep", "rmsRateEnergyDeposition", "endpointsDistance", "numHits", "rmsHitGap", "edgeProximity", "angle"]
+    features = ["purity", "completeness"]
     featurePlot(clusters, features, numHitsThreshold, densityPlot)
 
     return None

@@ -28,34 +28,41 @@ def parser():
 # Unpacks a root file and returns a tuple of event data.
 def dataUnpack(filename, treename):
     with uproot.open(f"{filename}:{treename}") as tree:
-        ids = tree["ids"].array(library="np")
-        hitIds = tree["hitIds"].array(library="np") # 8/9 nnnnnnnnnn "PDG code" nnnnn "particle counter"
+        counters = tree["counters"].array(library="np")
+        PDGCodes = tree["PDGCodes"].array(library="np")
+        originCodes = tree["originCodes"].array(library="np")
+        numMCHits, numPfoHits = tree["numMCHits"].array(library="np"), tree["numPfoHits"].array(library="np")
+        purities, completenesses = tree["purities"].array(library="np"), tree["completenesses"].array(library="np")
+        hitCounters = tree["hitCounters"].array(library="np")
         hitsX, hitsY, hitsZ = tree["hitsX"].array(library="np"), tree["hitsY"].array(library="np"), tree["hitsZ"].array(library="np") #[mm]
         cellSizesX, cellSizesY, cellSizesZ = tree["cellSizesX"].array(library="np"), tree["cellSizesY"].array(library="np"), tree["cellSizesZ"].array(library="np") #[mm]
         inputEnergies = tree["inputEnergies"].array(library="np")
-
-    print(f"There are {len(ids)} total events.")
-    return (ids, hitIds, hitsX, hitsY, hitsZ, cellSizesX, cellSizesY, cellSizesZ, inputEnergies)
+        
+    print(f"There are {len(PDGCodes)} total events.")
+    return np.array((counters, PDGCodes, originCodes, numMCHits, numPfoHits, purities, completenesses, hitCounters, hitsX, hitsY, hitsZ, cellSizesX, cellSizesY, cellSizesZ, inputEnergies)).T
 
 # Packages the event data into clusters linking together hits from the same particle.
 def createClusters(data):
     clusters = []
-    ids, hitIds, hitsX, hitsY, hitsZ, cellSizesX, cellSizesY, cellSizesZ, inputEnergies = data
-    for i in range(ids.shape[0]):
-        eventHits, eventHitGeometries = np.column_stack((hitsX[i], hitsY[i], hitsZ[i])), np.column_stack((cellSizesX[i], cellSizesY[i], cellSizesZ[i]))
 
-        uniqueHitIds = np.unique(hitIds[i])
-        for hitId in uniqueHitIds:
+    for i, eventData in enumerate(data):
+        counters, PDGCodes, originCodes, numMCHits, numPfoHits, purities, completenesses, hitCounters, hitsX, hitsY, hitsZ, cellSizesX, cellSizesY, cellSizesZ, inputEnergies = eventData
+        eventHits, eventHitGeometries = np.column_stack((hitsX, hitsY, hitsZ)), np.column_stack((cellSizesX, cellSizesY, cellSizesZ))
+
+        for k, c in enumerate(counters):
             cluster = {
                 "eventId": i,
-                "hitId": int(hitId),
-                "isFromNeutrino": str(hitId)[0]=="8",
-                "isClearCosmic": str(hitId)[0]=="7",
-                "PDGCode": int(str(hitId)[1:11]),
-                "counter": int(str(hitId)[-5:]),
-                "hits": eventHits[(hitIds[i]==hitId)].tolist(),
-                "hitGeometries": eventHitGeometries[(hitIds[i]==hitId)].tolist(),
-                "inputEnergies": inputEnergies[i][(hitIds[i]==hitId)].tolist()
+                "counter": int(c),
+                "PDGCode": int(PDGCodes[k]),
+                "isClearCosmic": bool(originCodes[k]==7),
+                "isFromNeutrino": bool(originCodes[k]==8),
+                "numMCHits": int(numMCHits[k]),
+                "numPfoHits": int(numPfoHits[k]),
+                "purity": float(purities[k]),
+                "completeness": float(completenesses[k]),
+                "hits": eventHits[(hitCounters==c)].tolist(),
+                "hitGeometries":eventHitGeometries[(hitCounters==c)].tolist(),
+                "inputEnergies": inputEnergies[(hitCounters==c)].tolist()
             }
             clusters.append(cluster)
 
