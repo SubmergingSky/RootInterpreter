@@ -70,15 +70,41 @@ def featurePlot(clusters, features, numHitsThreshold, densityPlot):
     plt.show()
     return None
 
+def evaluationPlot(clusters, threeD=False):
+    numHits, purities, completenesses = [], [], []
+    for c in clusters:
+        numHits.append(c["numMCHits"])
+        purities.append(c["purity"])
+        completenesses.append(c["completeness"])
+
+    if threeD:
+        fig = plt.figure(figsize=(8,6))
+        ax = fig.add_subplot(111, projection="3d")
+        ax.set_xlabel("# Hits")
+        ax.set_ylabel("Purity")
+        ax.set_zlabel("Completeness")
+        ax.set_title('Evaluation Plot')
+        ax.scatter(numHits, purities, completenesses, s=0.4)
+        ax.autoscale_view()
+    else:
+        fig = plt.figure(figsize=(8,6))
+
+        #plt.scatter(numHits, purities, label="Purity")
+        #plt.scatter(numHits, completenesses, label="Completeness")
+        plt.scatter(purities, completenesses)
+        plt.xlabel("Purity")
+        plt.ylabel("Completeness")
+    plt.show()
+
 
 def main():
     args = parser()
     dataFile, numHitsThreshold, densityPlot = args.datafile, args.numhitsthreshold, args.densityplot
 
     clusters = dataUnpack(dataFile)
-    #features = ["linearRmsError", "transverseWidth", "meanEnergyDep", "rmsRateEnergyDeposition", "endpointsDistance", "numHits", "rmsHitGap", "edgeProximity", "angle"]
-    features = ["purity", "completeness"]
-    featurePlot(clusters, features, numHitsThreshold, densityPlot)
+    features = ["linearRmsError", "transverseWidth", "meanEnergyDep", "rmsRateEnergyDeposition", "endpointsDistance", "numHits", "rmsHitGap", "edgeProximity", "angle"]
+    #featurePlot(clusters, features, numHitsThreshold, densityPlot)
+    evaluationPlot(clusters)
 
     return None
 
