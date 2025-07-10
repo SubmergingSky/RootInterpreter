@@ -59,7 +59,7 @@ def transverseWidth(cluster):
     if len(hits)<2:
         width = 0
     else:
-        pca = PCA(n_components=2)
+        pca = PCA(n_components=3)
         pca.fit(hits)
         width = np.sqrt(pca.explained_variance_[1])
     
@@ -106,16 +106,16 @@ def rmsHitGap(cluster):
     else:
         gapLengths = []
         for i in range(len(hits)-1):
-            x1, z1, x2, z2 = hits[i][0], hits[i][1], hits[i+1][0], hits[i+1][1]
-            w1, h1, w2, h2 = geometries[i][0], geometries[i][1], geometries[i+1][0], geometries[i+1][1]
-            xGap, zGap = max(0, abs(x2-x1)-(w1+w2)/2), max(0, abs(z2-z1)-(h1+h2)/2)
-            gapLengths.append(np.sqrt(xGap**2+zGap**2))
+            x1, y1, z1, x2, y2, z2 = hits[i][0], hits[i][1], hits[i][2], hits[i+1][0], hits[i+1][1], hits[i+1][2]
+            w1, d1, h1, w2, d2, h2 = geometries[i][0], geometries[i][1], geometries[i][2], geometries[i+1][0], geometries[i+1][1], geometries[i+1][2]
+            xGap, yGap, zGap = max(0, abs(x2-x1)-(w1+w2)/2), max(0, abs(y2-y1)-(d1+d2)/2), max(0, abs(z2-z1)-(h1+h2)/2)
+            gapLengths.append(np.sqrt(xGap**2+yGap**2+zGap**2))
         rmsGap = np.sqrt(np.mean(np.array(gapLengths)**2))
     
     cluster["rmsHitGap"] = rmsGap
     return cluster
 
-# Calculates the closest proximity to the edge of the detector.
+# Calculates the closest proximity to the edge of the detector. #BROKEN
 def edgeProximity(cluster):
     xMin, xMax, yMin, yMax = -203, 203, 0, 505
     fullHits, edgeDist = np.array(cluster["hits"]), []
@@ -134,7 +134,7 @@ def edgeProximity(cluster):
     cluster["edgeProximityEnd"] = (edgeDist[1] if len(edgeDist)>1 else edgeDist[0])
     return cluster
 
-# Calculates the angle of the particle's path.
+# Calculates the angle of the particle's path. #BROKEN
 def clusterAngle(cluster):
     hits = cluster["hits"]
     if len(hits)<2:
@@ -156,8 +156,8 @@ def findFeatures(clusters):
         cluster = rmsRateEnergyDeposition(cluster)
         cluster = rmsHitGap(cluster)
         cluster = transverseWidth(cluster)
-        cluster = edgeProximity(cluster)
-        cluster = clusterAngle(cluster)
+        #cluster = edgeProximity(cluster)
+        #cluster = clusterAngle(cluster)
         
     return clusters
 
