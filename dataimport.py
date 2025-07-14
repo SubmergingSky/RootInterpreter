@@ -71,8 +71,8 @@ def createClusters(data):
 # Cleans the clusters by vetoing those that fulfill certain conditions.
 def cleanClusters(clusters, onlyNeutrino=False):
     if onlyNeutrino:
-        clusters = [cluster for cluster in clusters if cluster["isFromNeutrino"]==True]
-        clusters = [cluster for cluster in clusters if cluster["PDGCode"]!=22]
+        clusters = [c for c in clusters if c["isFromNeutrino"]==True]
+        clusters = [c for c in clusters if c["PDGCode"]!=22]
 
     return clusters
 

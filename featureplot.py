@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import json
 import argparse
 import matplotlib.pyplot as plt
@@ -71,11 +72,12 @@ def featurePlot(clusters, features, numHitsThreshold, densityPlot):
     return None
 
 def evaluationPlot(clusters, threeD=False):
-    numHits, purities, completenesses = [], [], []
+    numHits, purities, completenesses, accepts = [], [], [], []
     for c in clusters:
         numHits.append(c["numMCHits"])
         purities.append(c["purity"])
         completenesses.append(c["completeness"])
+        accepts.append(c["acceptReco"])
 
     if threeD:
         fig = plt.figure(figsize=(8,6))
@@ -88,12 +90,20 @@ def evaluationPlot(clusters, threeD=False):
         ax.autoscale_view()
     else:
         fig = plt.figure(figsize=(8,6))
+        df = pd.DataFrame({"numHits": numHits, "accepted": accepts})
+        step = 200
+        bins = np.arange(0, df["numHits"].max()+step, step)
+        labels = [f"{bins[i]}-{bins[i+1]-1}" for i in range(len(bins)-1)]
+        df["hitRange"] = pd.cut(x=df["numHits"], bins=bins, labels=labels, right=False)
 
-        #plt.scatter(numHits, purities, label="Purity")
-        #plt.scatter(numHits, completenesses, label="Completeness")
-        plt.scatter(purities, completenesses)
-        plt.xlabel("Purity")
-        plt.ylabel("Completeness")
+        acceptance = df.groupby("hitRange")["accepted"].mean().reset_index()
+        plt.bar(acceptance["hitRange"], acceptance["accepted"], color="blue")
+        plt.xlabel('Number of Hits')
+        plt.ylabel("Acceptance Rate")
+        plt.ylim(0, 1)
+        plt.grid(axis='y', linestyle='--')
+
+
     plt.show()
 
 

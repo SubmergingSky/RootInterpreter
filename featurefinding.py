@@ -15,7 +15,7 @@ def parser():
     parser.add_argument(
         "-o", "--output",
         action="store_true",
-        default=False,
+        default=True,
         help="Whether to output the clusters to a json file."
     )
     parser.add_argument(
@@ -56,7 +56,7 @@ def rmsLinearFit(cluster):
 
 def transverseWidth(cluster):
     hits = cluster["hits"]
-    if len(hits)<2:
+    if len(hits)<3:
         width = 0
     else:
         pca = PCA(n_components=3)
@@ -146,6 +146,16 @@ def clusterAngle(cluster):
     cluster["angle"] = angle
     return cluster
 
+# Determines if a given cluster has been reconstructed successfully for the purposes of efficiency.
+def isAcceptableReco(cluster):
+    if cluster["purity"]>0.9 and cluster["completeness"]>0.5:
+        acceptReco = True
+    else:
+        acceptReco = False
+    
+    cluster["acceptReco"] = acceptReco
+    return cluster
+
 # Calculates each feature and appends to each cluster.
 def findFeatures(clusters):
     for cluster in clusters:
@@ -158,6 +168,7 @@ def findFeatures(clusters):
         cluster = transverseWidth(cluster)
         #cluster = edgeProximity(cluster)
         #cluster = clusterAngle(cluster)
+        cluster = isAcceptableReco(cluster)
         
     return clusters
 
