@@ -93,11 +93,6 @@ def endPointsDistance(cluster):
     cluster["endpointsDistance"] = np.linalg.norm(trackEnd-trackStart)
     return cluster
 
-# Calculates the number of hits in the particle's track.
-def numHits(cluster):
-    cluster["numHits"] = len(cluster["hits"])
-    return cluster
-
 # Calculates of the mean RMS gap between hits.
 def rmsHitGap(cluster):
     hits, geometries = cluster["hits"], cluster["hitGeometries"]
@@ -159,7 +154,7 @@ def isAcceptableReco(cluster):
 # Calculates each feature and appends to each cluster.
 def findFeatures(clusters):
     for cluster in clusters:
-        cluster = numHits(cluster)
+        cluster = isAcceptableReco(cluster)
         cluster = endPointsDistance(cluster)
         cluster = rmsLinearFit(cluster)
         cluster = meanEnergyDeposition(cluster)
@@ -168,7 +163,6 @@ def findFeatures(clusters):
         cluster = transverseWidth(cluster)
         #cluster = edgeProximity(cluster)
         #cluster = clusterAngle(cluster)
-        cluster = isAcceptableReco(cluster)
         
     return clusters
 
@@ -178,6 +172,7 @@ def removeKeys(clusters):
         del cluster["hits"]
         del cluster["hitGeometries"]
         del cluster["inputEnergies"]
+        del cluster["MCHits"]
 
     return clusters
 
@@ -185,7 +180,7 @@ def removeKeys(clusters):
 # Plots a histogram of a given cluster feature.
 def featurePlot(clusters, feature, numHitsThreshold, onlyPiMu, densityPlot):
     numHits = np.array([len(cluster.get("hits")) for cluster in clusters])
-    PDGCodes, featureValues= np.array([cluster.get("PDGCode") for cluster in clusters])[numHits>=numHitsThreshold], np.array([cluster.get(feature) for cluster in clusters])[numHits>=numHitsThreshold], 
+    PDGCodes, featureValues= np.array([cluster.get("recoPDG") for cluster in clusters])[numHits>=numHitsThreshold], np.array([cluster.get(feature) for cluster in clusters])[numHits>=numHitsThreshold], 
     for code in np.unique(PDGCodes):
         if onlyPiMu and (code!=211 and code !=13):
             continue
@@ -226,6 +221,7 @@ def main(feature="rmsHitGap"):
         reducedClusters = removeKeys(featuredClusters)
         with open(f"Data/featured_{dataFile}", "w") as f:
             json.dump(reducedClusters, f, indent=4)
+            #json.dump(featuredClusters, f, indent=4)
         print("Output file created")
 
     return None

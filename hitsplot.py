@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt, matplotlib.patches as patch, matplotlib.collections as collections
 import json
 import argparse
+import copy
 
 def parser():
     parser = argparse.ArgumentParser(description="Visualises event data from json file.")
@@ -104,29 +105,64 @@ def eventPlot(hitPositions, hitGeometries, particleTypes, systemTypes, markNeutr
     return None
 
 # Plots the hitmap of a given cluster.
-def particlePlot(cluster):
-    xCoords, zCoords = np.array(cluster["hits"])[:,0], np.array(cluster["hits"])[:,2]
-    plt.scatter(xCoords, zCoords, s=0.4)
-    plt.title(f"{cluster["eventId"]}   {cluster["hitId"]}")
+def particlePlot(cluster, i, threeD=False):
+    if threeD:
+        fig = plt.figure(figsize=(8,6))
+        ax = fig.add_subplot(111, projection="3d")
+        ax.set_xlabel("X Position /mm")
+        ax.set_ylabel("Y Position /mm")
+        ax.set_zlabel("Z Position /mm")
+        ax.set_title('3D Event Plot')
+    else:
+        fig, ax = plt.subplots(figsize=(10,8))
+        ax.set_title(f"Plot {i+1}   {cluster["eventId"]}")
+        ax.set_xlabel("X Position /mm")
+        ax.set_ylabel("Z Position /mm")
+
+
+    hitPositions, hitGeometries, MCHits = np.array(cluster["hits"]), np.array(cluster["hitGeometries"]), np.array(cluster["MCHits"])
+    centresX, centresY, centresZ = hitPositions[:,0], hitPositions[:,1], hitPositions[:,2]
+    MCX, MCY, MCZ = MCHits[:,0], MCHits[:,1], MCHits[:,2]
+    if threeD:
+        ax.scatter(centresX, centresY, centresZ, s=0.4)
+    else:
+        cellSizeX, cellSizeZ = hitGeometries[:,0], hitGeometries[:,2]
+        patches = []
+        for i in range(len(centresX)):
+            cornerX, cornerZ = centresX[i] - cellSizeX[i]/2, centresZ[i] - cellSizeZ[i]/2
+            rect = patch.Rectangle((cornerX, cornerZ), cellSizeX[i], cellSizeZ[i])
+            patches.append(rect)
+        ax.add_collection(collections.PatchCollection(patches, facecolor="b", edgecolor="b", linewidth=0.5, alpha=0.7))
+        ax.scatter(MCX, MCZ, s=1, c="green")
+
+
+    #ax.set_xlim((-234,234))
+    #ax.set_ylim((5, 505))
+    ax.autoscale_view()
     plt.show()
     return None
 
 
 # TEST FUNCTION
 def particleTest():
-    with open("Data/featured_data.json", "r") as f:
+    with open("Data/full_featured_data1_10.json", "r") as f:
         data = json.load(f)
 
     validClusters = []
     for cluster in data:
-        if cluster["PDGCode"]==13 and cluster["linearRmsError"]>5:
+        if cluster:
             validClusters.append(cluster)
         else:
             continue
+    reducedValidClusters = copy.deepcopy(validClusters)
+    for c in reducedValidClusters:
+        del c["hits"], c["hitGeometries"], c["inputEnergies"], c["MCHits"]
+    
     with open("Data/temp.json", "w") as f:
-        json.dump(validClusters[0:5], f, indent=4)
+        json.dump(reducedValidClusters[0:5], f, indent=4)
     for i in range(5):
-        particlePlot(validClusters[i])
+        particlePlot(validClusters[i], i)
+
 
     return None
 
@@ -170,4 +206,5 @@ def main():
 
     return None
     
-main()
+#main()
+particleTest()
