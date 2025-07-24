@@ -56,7 +56,7 @@ def createMasks(neutrinoCodes, clearCosmicCodes, PDGCodes, particleTypes, system
     return particleTypes, systemTypes
 
 # Plots a given detector event.
-def eventPlot(hitPositions, hitGeometries, particleTypes, systemTypes, markNeutrino, markCosmics, threeD):
+def eventPlot(hitPositions, hitGeometries, MCHits, particleTypes, systemTypes, markNeutrino, markCosmics, threeD):
     def plotHits(hitPositions, hitGeometries, mask, colour):
         centresX, centresY, centresZ = hitPositions[:,0][mask], hitPositions[:,1][mask], hitPositions[:,2][mask]
         if threeD:
@@ -69,6 +69,7 @@ def eventPlot(hitPositions, hitGeometries, particleTypes, systemTypes, markNeutr
                 rect = patch.Rectangle((cornerX, cornerZ), cellSizeX[i], cellSizeZ[i])
                 patches.append(rect)
             ax.add_collection(collections.PatchCollection(patches, facecolor=colour, edgecolor=colour, linewidth=0.5, alpha=0.7))
+            
         return None
     
     if threeD:
@@ -84,7 +85,7 @@ def eventPlot(hitPositions, hitGeometries, particleTypes, systemTypes, markNeutr
         ax.set_xlabel("X Position /mm")
         ax.set_ylabel("Z Position /mm")
     
-    if markNeutrino:
+    """if markNeutrino:
         neutrinoMask = systemTypes[2]["mask"]
         for pType in particleTypes:
             plotHits(hitPositions, hitGeometries, (pType["mask"] & neutrinoMask), "black")
@@ -98,7 +99,8 @@ def eventPlot(hitPositions, hitGeometries, particleTypes, systemTypes, markNeutr
         for pType in particleTypes:
             plotHits(hitPositions, hitGeometries, pType["mask"], pType["colour"])
     miscType = systemTypes[1]
-    plotHits(hitPositions, hitGeometries, miscType["mask"], miscType["colour"])
+    plotHits(hitPositions, hitGeometries, miscType["mask"], miscType["colour"])"""
+    ax.scatter(MCHits[:,0], MCHits[:,1], s=0.4, c="green")
 
     ax.autoscale_view()
     plt.show()
@@ -120,9 +122,10 @@ def particlePlot(cluster, i, threeD=False):
         ax.set_ylabel("Z Position /mm")
 
 
-    hitPositions, hitGeometries, MCHits = np.array(cluster["hits"]), np.array(cluster["hitGeometries"]), np.array(cluster["MCHits"])
+    hitPositions, hitGeometries, MCHits = np.array(cluster["hits"]), np.array(cluster["hitGeometries"]), np.array(cluster["MCHitsW"])
     centresX, centresY, centresZ = hitPositions[:,0], hitPositions[:,1], hitPositions[:,2]
-    MCX, MCY, MCZ = MCHits[:,0], MCHits[:,1], MCHits[:,2]
+    MCX, MCZ = MCHits[:,0], MCHits[:,1]
+    ax.scatter(MCX, MCZ, s=1, c="green")
     if threeD:
         ax.scatter(centresX, centresY, centresZ, s=0.4)
     else:
@@ -133,11 +136,7 @@ def particlePlot(cluster, i, threeD=False):
             rect = patch.Rectangle((cornerX, cornerZ), cellSizeX[i], cellSizeZ[i])
             patches.append(rect)
         ax.add_collection(collections.PatchCollection(patches, facecolor="b", edgecolor="b", linewidth=0.5, alpha=0.7))
-        ax.scatter(MCX, MCZ, s=1, c="green")
-
-
-    #ax.set_xlim((-234,234))
-    #ax.set_ylim((5, 505))
+        
     ax.autoscale_view()
     plt.show()
     return None
@@ -150,13 +149,13 @@ def particleTest():
 
     validClusters = []
     for cluster in data:
-        if cluster:
+        if (cluster["truthOrigin"]==7 and cluster["recoOrigin"]==7):
             validClusters.append(cluster)
         else:
             continue
     reducedValidClusters = copy.deepcopy(validClusters)
     for c in reducedValidClusters:
-        del c["hits"], c["hitGeometries"], c["inputEnergies"], c["MCHits"]
+        del c["hits"], c["hitGeometries"], c["inputEnergies"], c["MCHitsU"], c["MCHitsV"], c["MCHitsW"]
     
     with open("Data/temp.json", "w") as f:
         json.dump(reducedValidClusters[0:5], f, indent=4)
@@ -192,19 +191,20 @@ def main():
     eventIds = np.unique([cluster.get("eventId") for cluster in data])
     for i in range(skipEvents, min(len(eventIds), skipEvents+viewEvents)):
         eventClusters = [cluster for cluster in data if cluster.get("eventId")==eventIds[i]]
-        isFromNeutrinos, isClearCosmic, PDGCodes, hitPositions, hitGeometries = [], [], [], [], []
+        isFromNeutrinos, isClearCosmic, PDGCodes, hitPositions, hitGeometries, MCHits = [], [], [], [], [], []
         for cluster in eventClusters:
-            for hit, hitGeometry in zip(cluster["hits"], cluster["hitGeometries"]):
-                isFromNeutrinos.append(cluster["isFromNeutrino"])
-                isClearCosmic.append(cluster["isClearCosmic"])
-                PDGCodes.append(cluster["PDGCode"])
-                hitPositions.append(hit)
-                hitGeometries.append(hitGeometry)
-        isFromNeutrinos, isClearCosmic, PDGCodes, hitPositions, hitGeometries = np.array(isFromNeutrinos), np.array(isClearCosmic), np.array(PDGCodes), np.array(hitPositions), np.array(hitGeometries)
+            for MCHit in cluster["MCHitsW"]: #zip(cluster["hits"], cluster["hitGeometries"], 
+                isFromNeutrinos.append(cluster["recoOrigin"]==8)
+                isClearCosmic.append(cluster["recoOrigin"]==7)
+                PDGCodes.append(cluster["recoPDG"])
+                #hitPositions.append(hit)
+                #hitGeometries.append(hitGeometry)
+                MCHits.append(MCHit)
+        isFromNeutrinos, isClearCosmic, PDGCodes, hitPositions, hitGeometries, MCHits = np.array(isFromNeutrinos), np.array(isClearCosmic), np.array(PDGCodes), np.array(hitPositions), np.array(hitGeometries), np.array(MCHits)
         particleTypesMasked, systemTypesMasked = createMasks(isFromNeutrinos, isClearCosmic, PDGCodes, particleTypes, systemTypes)
-        eventPlot(hitPositions, hitGeometries, particleTypesMasked, systemTypesMasked, markNeutrino, markCosmics, threeDPlot)
+        eventPlot(hitPositions, hitGeometries, MCHits, particleTypesMasked, systemTypesMasked, markNeutrino, markCosmics, threeDPlot)
 
     return None
     
-#main()
-particleTest()
+main()
+#particleTest()

@@ -15,7 +15,7 @@ def parser():
     parser.add_argument(
         "-t", "--numhitsthreshold",
         type=int,
-        default=4,
+        default=10,
         help="The minimum number of hits a cluster must have to be considered."
     )
     parser.add_argument(
@@ -31,13 +31,13 @@ def dataUnpack(dataFile, numHitsThreshold):
         data = json.load(f)
     
     fullClusters = np.array([c for c in data])
-    selectedClusters = [c for c in fullClusters if c["numPfoHits"]>=numHitsThreshold]
+    selectedClusters = [c for c in fullClusters if (c["numPfoHits"]>=numHitsThreshold and c["include"])]
     print(f"Total clusters: {len(fullClusters)}     Selected clusters: {len(selectedClusters)}")
 
-    cosmicClusters, ambiguousClusters = [c for c in selectedClusters if c["truthOrigin"]==7], [c for c in selectedClusters if c["truthOrigin"]!=7]
-    print(f"Clear cosmic clusters: {len(cosmicClusters)}     Ambiguous clusters: {len(ambiguousClusters)}\n")
+    cosmicClusters, neutrinoClusters, ambiguousClusters = [c for c in selectedClusters if c["truthOrigin"]==7], [c for c in selectedClusters if c["truthOrigin"]==8], [c for c in selectedClusters if c["truthOrigin"] not in [7,8]]
+    print(f"Clear cosmic clusters: {len(cosmicClusters)}     Neutrino clusters: {len(neutrinoClusters)}     Ambiguous clusters: {len(ambiguousClusters)}\n")
 
-    return (cosmicClusters, ambiguousClusters)
+    return (cosmicClusters, neutrinoClusters, ambiguousClusters)
 
 def efficiencyPlot(combinedClusters):
     fig, axes = plt.subplots(2, 2, figsize=(12, 9))
@@ -48,7 +48,7 @@ def efficiencyPlot(combinedClusters):
         for c in clusters:
             numHits.append(c["numMCHits"])
             accepts.append(c["acceptReco"])
-            accepts.append(c["recoOrigin"])
+            origins.append(c["recoOrigin"])
         
         df = pd.DataFrame({"numHits": numHits, "accepted": accepts})
         binsLow, binsMid, binsHigh = np.arange(0, 100, 100), np.arange(100, 2000, 100), np.arange(2000, np.max(numHits)+500, 100)
@@ -141,28 +141,46 @@ def cosmicPlot(clusters):
     return None
 
 def categorisationQuality(combinedClusters):
-    cosmicClusters, ambiguousClusters = combinedClusters
-    cosmicHits, ambiguousHits = sum([c["numPfoHits"] for c in cosmicClusters]), sum([c["numPfoHits"] for c in ambiguousClusters])
+    cosmicClusters, neutrinoClusters, ambiguousClusters = combinedClusters
+    combinedClustersMasked = [(cosmicClusters, [7]), (neutrinoClusters, [8]), (ambiguousClusters, [6,9])]
+    hits, accuracyCluster, accuracyHit, efficiencyCluster, efficiencyHit = [], [], [], [], []
+    for (clusters, mask) in combinedClustersMasked:
+        cHits = sum([c["numPfoHits"] for c in clusters])
 
-    cosmicAccuracyCluster, ambiguousAccuracyCluster = sum([c["recoOrigin"]==7 for c in cosmicClusters])/len(cosmicClusters), sum([c["recoOrigin"]!=7 for c in ambiguousClusters])/len(ambiguousClusters)
-    cosmicAccuracyHit, ambiguousAccuracyHit = sum([(c["recoOrigin"]==7)*c["numPfoHits"] for c in cosmicClusters])/cosmicHits, sum([(c["recoOrigin"]!=7)*c["numPfoHits"] for c in ambiguousClusters])/ambiguousHits
+        hits.append(cHits)
+        accuracyCluster.append( sum([c["recoOrigin"] in mask for c in clusters])/len(clusters) )
+        accuracyHit.append( sum([(c["recoOrigin"] in mask)*c["numPfoHits"] for c in clusters])/cHits )
+        efficiencyCluster.append( sum(c["acceptReco"] for c in clusters)/len(clusters) )
+        efficiencyHit.append( sum(c["acceptReco"]*c["numPfoHits"] for c in clusters)/cHits )
 
-    cosmicEfficiencyCluster, ambiguousEfficiencyCluster = sum(c["acceptReco"] for c in cosmicClusters)/len(cosmicClusters), sum(c["acceptReco"] for c in ambiguousClusters)/len(ambiguousClusters)
-    cosmicEfficiencyHit, ambiguousEfficiencyHit = sum(c["acceptReco"]*c["numPfoHits"] for c in cosmicClusters)/cosmicHits, sum(c["acceptReco"]*c["numPfoHits"] for c in ambiguousClusters)/ambiguousHits
+    trueNeutrinoHits, markedNeutrinoHits = [], []
+    allClusters = cosmicClusters + neutrinoClusters + ambiguousClusters
+    for c in allClusters:
+        allMCHits = c["MCHitsU"] + c["MCHitsV"] + c["MCHitsW"]
+        if c["truthReco"]==8:
+            trueNeutrinoHits.extend(allMCHits)
 
-    print(f"\n{"------ Quality Evaluation ------":^}")
 
-    print(f"{"#":10} {"Cluster":>10} {"Hit":>10}")
-    print(f"{"Cosmic":10} {len(cosmicClusters):10} {cosmicHits:10}")
-    print(f"{"Ambiguous":10} {len(ambiguousClusters):10} {ambiguousHits:10}\n")
 
-    print(f"{"Accuracy:":10}")
-    print(f"{"Cosmic":10} {cosmicAccuracyCluster:10.4f} {cosmicAccuracyHit:10.4f}")
-    print(f"{"Ambiguous":10} {ambiguousAccuracyCluster:10.4f} {ambiguousAccuracyHit:10.4f}\n")
+    print(f"\n{"------ Quality Evaluation ------":^40}")
+
+    print(f"{"#":20} {"Cluster":>10} {"Hit":>10}")
+    print(f"{"Clear Cosmic":20} {len(cosmicClusters):10} {hits[0]:10}")
+    print(f"{"Ambiguous (Neutrino)":20} {len(neutrinoClusters):10} {hits[1]:10}")
+    print(f"{"Ambiguous (Other)":20} {len(ambiguousClusters):10} {hits[2]:10}\n")
+
+    print(f"{"Accuracy:":20}")
+    print(f"{"Clear Cosmic":20} {accuracyCluster[0]:10.4f} {accuracyHit[0]:10.4f}")
+    print(f"{"Ambiguous (Neutrino)":20} {accuracyCluster[1]:10.4f} {accuracyHit[1]:10.4f}")
+    print(f"{"Ambiguous (Other)":20} {accuracyCluster[2]:10.4f} {accuracyHit[2]:10.4f}\n")
 
     print("Efficiency:")
-    print(f"{"Cosmic":10} {cosmicEfficiencyCluster:10.4f} {cosmicEfficiencyHit:10.4f}")
-    print(f"{"Ambiguous":10} {ambiguousEfficiencyCluster:10.4f} {ambiguousEfficiencyHit:10.4f}\n")
+    print(f"{"Clear Cosmic":20} {efficiencyCluster[0]:10.4f} {efficiencyHit[0]:10.4f}")
+    print(f"{"Ambiguous (Neutrino)":20} {efficiencyCluster[1]:10.4f} {efficiencyHit[1]:10.4f}")
+    print(f"{"Ambiguous (Other)":20} {efficiencyCluster[2]:10.4f} {efficiencyHit[2]:10.4f}\n")
+
+    #prop = sum([c["truthOrigin"]==7 for c in cosmicClusters+neutrinoClusters+ambiguousClusters])/sum([(c["truthOrigin"]==6 or c["truthOrigin"]==7) for c in cosmicClusters+neutrinoClusters+ambiguousClusters])
+    #print(prop)
 
     return None
 
@@ -173,9 +191,9 @@ def main():
     dataFile, numHitsThreshold, densityPlot = args.datafile, args.numhitsthreshold, args.densityplot
 
     clusters = dataUnpack(dataFile, numHitsThreshold)
-    #categorisationQuality(clusters)
+    categorisationQuality(clusters)
     #efficiencyPlot(clusters)
-    cosmicPlot(clusters[0])
+    #cosmicPlot(clusters[0])
 
     return None
 

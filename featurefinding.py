@@ -142,9 +142,11 @@ def clusterAngle(cluster):
     return cluster
 
 # Determines if a given cluster has been reconstructed successfully for the purposes of efficiency.
+acceptedMCs = []
 def isAcceptableReco(cluster):
     if cluster["purity"]>0.9 and cluster["completeness"]>0.5:
         acceptReco = True
+        acceptedMCs.append((cluster["MCUid"], cluster["counter"], cluster["eventId"]))
     else:
         acceptReco = False
     
@@ -163,16 +165,23 @@ def findFeatures(clusters):
         cluster = transverseWidth(cluster)
         #cluster = edgeProximity(cluster)
         #cluster = clusterAngle(cluster)
+
+    for (uid, counter, eId) in acceptedMCs:
+        for c in clusters:
+            if c["MCUid"]==uid and c["eventId"]==eId and c["counter"]!=counter:
+                c["include"] = False
         
     return clusters
 
 # Removes certain keys from each cluser.
 def removeKeys(clusters):
-    for cluster in clusters:
-        del cluster["hits"]
-        del cluster["hitGeometries"]
-        del cluster["inputEnergies"]
-        del cluster["MCHits"]
+    for c in clusters:
+        del c["hits"]
+        del c["hitGeometries"]
+        del c["inputEnergies"]
+        del c["MCHitsU"]
+        del c["MCHitsV"]
+        del c["MCHitsW"]
 
     return clusters
 
@@ -218,10 +227,9 @@ def main(feature="rmsHitGap"):
     #featurePlot(featuredClusters, feature, numHitsThreshold, onlyPiMu, densityPlot)
 
     if output:
-        reducedClusters = removeKeys(featuredClusters)
+        removeKeys(featuredClusters)
         with open(f"Data/featured_{dataFile}", "w") as f:
-            json.dump(reducedClusters, f, indent=4)
-            #json.dump(featuredClusters, f, indent=4)
+            json.dump(featuredClusters, f, indent=4)
         print("Output file created")
 
     return None
